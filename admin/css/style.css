@@ -253,6 +253,8 @@ body {
 .funnel-bar-container {
   flex: 1;
   max-width: 400px;
+  overflow: hidden;
+  border-radius: 8px;
 }
 
 .funnel-bar {

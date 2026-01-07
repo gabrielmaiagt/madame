@@ -186,7 +186,9 @@
                 if (!metrics.avgTimeByPage[page]) {
                     metrics.avgTimeByPage[page] = { total: 0, count: 0 };
                 }
-                metrics.avgTimeByPage[page].total += event.time_spent_ms;
+                // Cap de 10 minutos (600.000ms) para evitar distorção por abas esquecidas
+                const timeSpent = Math.min(event.time_spent_ms, 600000);
+                metrics.avgTimeByPage[page].total += timeSpent;
                 metrics.avgTimeByPage[page].count++;
             }
         });
@@ -693,9 +695,11 @@
             }
 
             // Calcula largura da barra (relativo ao primeiro step)
-            const firstStepVisitors = metrics.funnelSteps[FUNNEL_STEPS[0].path].visitors.size ||
-                metrics.funnelSteps[FUNNEL_STEPS[0].path].pageviews || 1;
-            const barWidth = Math.max(10, (visitors / firstStepVisitors) * 100);
+            // BUG FIX: Usa o máximo de visitantes de qualquer etapa para evitar que a barra passe de 100%
+            const maxVisitors = Math.max(...FUNNEL_STEPS.map(s =>
+                metrics.funnelSteps[s.path].visitors.size || metrics.funnelSteps[s.path].pageviews
+            )) || 1;
+            const barWidth = Math.max(10, (visitors / maxVisitors) * 100);
 
             // Determina se é gargalo (drop > 50%)
             const isGargalo = dropRate > 50 && index > 0;
@@ -1103,13 +1107,24 @@
             reg.formErrors.required_field + reg.formErrors.other;
 
         // Calcula % de preenchimento baseado em quem focou vs preencheu
-        const fields = ['name', 'email', 'pix_key', 'password'];
+        const fields = ['name', 'email', 'pix_key', 'pixKey', 'password'];
         let fieldStats = '';
         fields.forEach(field => {
             const focused = reg.fieldFocus[field] || 0;
             const filled = reg.fieldFilled[field] || 0;
-            const rate = focused > 0 ? Math.round((filled / focused) * 100) : 0;
-            const label = field === 'pix_key' ? 'Chave PIX' :
+
+            // Se for PIX, soma ambos os IDs possíveis para garantir captura
+            let actualFocused = focused;
+            let actualFilled = filled;
+            if (field === 'pix_key' || field === 'pixKey') {
+                actualFocused = (reg.fieldFocus['pix_key'] || 0) + (reg.fieldFocus['pixKey'] || 0);
+                actualFilled = (reg.fieldFilled['pix_key'] || 0) + (reg.fieldFilled['pixKey'] || 0);
+                // Evita duplicar se ambos existirem (um pouco simplista mas funcional)
+                if (field === 'pixKey') return;
+            }
+
+            const rate = actualFocused > 0 ? Math.round((actualFilled / actualFocused) * 100) : 0;
+            const label = (field === 'pix_key' || field === 'pixKey') ? 'Chave PIX' :
                 field === 'name' ? 'Nome' :
                     field === 'email' ? 'Email' : 'Senha';
             fieldStats += `

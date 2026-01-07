@@ -454,8 +454,9 @@
     window.MadamesTracking.trackPageExit();
   });
 
-  // Auto-tracking de links com data-track-cta
+  // Auto-tracking de links e botões
   document.addEventListener('click', function (e) {
+    // 1. CTA Tracking (data-track-cta)
     const target = e.target.closest('[data-track-cta]');
     if (target) {
       const ctaId = target.getAttribute('data-track-cta');
@@ -464,11 +465,48 @@
       window.MadamesTracking.trackCTA(ctaId, ctaText, href);
     }
 
-    // Auto-tracking de botões dentro de links
-    const button = e.target.closest('button');
+    // 2. Detection of specific funnel actions by text/svg/class
+    const btn = e.target.closest('button');
+    if (btn) {
+      const text = btn.textContent.trim().toLowerCase();
+      const svg = btn.querySelector('svg');
+
+      // Detecção de Swipe (Like/Heart)
+      if (text.includes('curtir') || (svg && btn.classList.contains('bg-primary-500'))) {
+        window.MadamesTracking.trackSwipe('like', 'auto', 'Profile');
+      }
+
+      // Detecção de Swipe (Dislike/X)
+      if (text === 'x' || (svg && btn.querySelector('path[d*="M18 6 6 18"]'))) {
+        window.MadamesTracking.trackSwipe('dislike', 'auto', 'Profile');
+      }
+
+      // Detecção de Popup de Saque (Saldo)
+      if (text.includes('saldo') || text.includes('r$')) {
+        window.MadamesTracking.trackWithdrawPopup('open', 'header');
+      }
+
+      // Detecção de Checkout/Paywall
+      if (text.includes('liberar') || text.includes('acesso vip') || text.includes('assinar')) {
+        window.MadamesTracking.trackPaywall('click_checkout', 'auto_detect');
+        window.MadamesTracking.trackCheckout('init', 'auto_detect');
+      }
+
+      // Botão de Solicitar Saque dentro do Modal
+      if (text.includes('solicitar saque')) {
+        window.MadamesTracking.trackWithdrawPopup('submit_pix', 'modal');
+      }
+
+      // Detecção de Gift Claim (Resgatar Presente)
+      if (text.includes('resgatar') || text.includes('presente')) {
+        window.MadamesTracking.trackGiftClaim('auto', 50, 'chat');
+      }
+    }
+
+    // 3. Fallback para botões dentro de links
     const link = e.target.closest('a');
-    if (button && link) {
-      const ctaText = button.textContent.trim();
+    if (btn && link && !target) {
+      const ctaText = btn.textContent.trim();
       const href = link.getAttribute('href');
       if (ctaText && href) {
         window.MadamesTracking.trackCTA('auto_' + ctaText.toLowerCase().replace(/\s+/g, '_'), ctaText, href);
