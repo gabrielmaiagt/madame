@@ -512,7 +512,42 @@
         window.MadamesTracking.trackCTA('auto_' + ctaText.toLowerCase().replace(/\s+/g, '_'), ctaText, href);
       }
     }
+
+    // 4. Detecção de cliques em botões desabilitados (pode indicar erro de validação)
+    if (e.target.tagName === 'BUTTON' && e.target.disabled) {
+      const text = e.target.textContent.trim().toLowerCase();
+      if (text.includes('continuar') || text.includes('próximo')) {
+        window.MadamesTracking.trackFormError('required_field', 'Tentativa de clique em botão desabilitado');
+      }
+    }
   });
+
+  // 5. Monitor de Erros Globais (MutationObserver para Toasts/Alertas)
+  const errorObserver = new MutationObserver(function (mutations) {
+    mutations.forEach(function (mutation) {
+      if (mutation.addedNodes.length > 0) {
+        mutation.addedNodes.forEach(function (node) {
+          if (node.nodeType === 1) { // Elemento
+            const text = node.innerText ? node.innerText.toLowerCase() : '';
+            const isError = text.includes('obrigatório') || text.includes('inválido') ||
+              text.includes('curta') || text.includes('erro') ||
+              text.includes('não confere');
+
+            if (isError) {
+              let errorType = 'other';
+              if (text.includes('obrigatório')) errorType = 'required_field';
+              if (text.includes('não confere') || text.includes('diferentes')) errorType = 'password_mismatch';
+              if (text.includes('curta')) errorType = 'password_short';
+
+              window.MadamesTracking.trackFormError(errorType, text.substring(0, 100));
+            }
+          }
+        });
+      }
+    });
+  });
+
+  errorObserver.observe(document.body, { childList: true, subtree: true });
 
   console.log('📊 Madames Tracking inicializado');
 })();
