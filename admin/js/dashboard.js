@@ -1552,16 +1552,99 @@
             </div>
             <div class="abandon-list">
                 ${abandons.slice(0, 5).map(a => `
-                    <div class="abandon-row">
-                        <div class="abandon-info">
-                            <span class="abandon-name">${a.customer_name || 'Sem nome'}</span>
-                            <span class="abandon-email">${a.customer_email || ''}</span>
-                        </div>
-                        <div class="abandon-offer">${a.offer_title || 'Oferta'}</div>
                     </div>
                 `).join('')}
             </div>
         `;
+        container.innerHTML = html;
+    }
+
+    // =====================
+    // Webhook Logs
+    // =====================
+
+    async function renderWebhookLogs() {
+        if (!window.MadamesFirestore || !window.MadamesFirestore.isReady()) {
+            return;
+        }
+
+        try {
+            // Busca logs de transações (sucesso e erro)
+            const db = firebase.firestore();
+
+            // Logs de sucesso (transações recentes)
+            const successLogs = await db.collection('transactions')
+                .orderBy('created_at', 'desc')
+                .limit(10)
+                .get();
+
+            renderWebhookSuccess(successLogs.docs.map(d => ({ id: d.id, ...d.data() })));
+
+            // Logs de erro (se existir coleção webhook_errors)
+            try {
+                const errorLogs = await db.collection('webhook_errors')
+                    .orderBy('created_at', 'desc')
+                    .limit(10)
+                    .get();
+                renderWebhookErrors(errorLogs.docs.map(d => ({ id: d.id, ...d.data() })));
+            } catch (e) {
+                // Coleção não existe ainda - mostra vazio
+                renderWebhookErrors([]);
+            }
+        } catch (e) {
+            console.error('Erro ao buscar logs:', e);
+        }
+    }
+
+    function renderWebhookSuccess(logs) {
+        const container = document.getElementById('webhook-success');
+        if (!container) return;
+
+        if (!logs || logs.length === 0) {
+            container.innerHTML = '<p class="no-data">Nenhum log de sucesso ainda</p>';
+            return;
+        }
+
+        let html = '';
+        logs.forEach(log => {
+            const time = log.created_at?.toDate ?
+                formatDateTime(log.created_at.toDate().getTime()) :
+                formatDateTime(log.gateway_created_at || Date.now());
+
+            html += `
+                <div class="log-item success">
+                    <span class="log-time">${time}</span>
+                    <span class="log-message">${log.gateway_status || 'webhook'}: ${log.customer_email || 'N/A'}</span>
+                    <span class="log-details">${log.amount_formatted || ''} - ${log.method || ''}</span>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    }
+
+    function renderWebhookErrors(errors) {
+        const container = document.getElementById('webhook-errors');
+        if (!container) return;
+
+        if (!errors || errors.length === 0) {
+            container.innerHTML = '<p class="no-data">✅ Nenhum erro registrado</p>';
+            return;
+        }
+
+        let html = '';
+        errors.forEach(err => {
+            const time = err.created_at?.toDate ?
+                formatDateTime(err.created_at.toDate().getTime()) :
+                formatDateTime(Date.now());
+
+            html += `
+                <div class="log-item error">
+                    <span class="log-time">${time}</span>
+                    <span class="log-message">${err.error_type || 'Erro'}</span>
+                    <span class="log-details">${err.message || err.details || 'Sem detalhes'}</span>
+                </div>
+            `;
+        });
         container.innerHTML = html;
     }
 
@@ -1608,8 +1691,17 @@
             refreshBtn.addEventListener('click', refreshDashboard);
         }
 
+        // Bind do botão de refresh logs
+        const refreshLogsBtn = document.getElementById('refresh-logs-btn');
+        if (refreshLogsBtn) {
+            refreshLogsBtn.addEventListener('click', renderWebhookLogs);
+        }
+
         // Renderiza dashboard inicial
         refreshDashboard();
+
+        // Renderiza logs do webhook
+        renderWebhookLogs();
 
         // Auto-refresh a cada 30 segundos
         setInterval(refreshDashboard, 30000);

@@ -61,6 +61,19 @@ exports.paymentWebhook = functions.https.onRequest((req, res) => {
     });
 });
 
+
+// =====================
+// UTILS
+// =====================
+
+/**
+ * Remove chaves com valor undefined de um objeto
+ * Firestore não aceita undefined
+ */
+function cleanUndefined(obj) {
+    return JSON.parse(JSON.stringify(obj));
+}
+
 // =====================
 // HANDLERS
 // =====================
@@ -92,7 +105,7 @@ async function handleTransaction(payload) {
     const transactionData = {
         // Identificadores
         transaction_id: transaction.id || payload.token,
-        token: payload.token,
+        token: payload.token || null,
 
         // Status e método
         gateway_status: payload.status,
@@ -105,46 +118,46 @@ async function handleTransaction(payload) {
         amount_formatted: `R$ ${((transaction.amount || 0) / 100).toFixed(2).replace('.', ',')}`,
 
         // Cliente
-        customer_id: customer.id,
-        customer_name: customer.name,
-        customer_email: customer.email,
-        customer_phone: customer.phone || customer.phone_number,
-        customer_document: customer.document,
-        customer_city: customer.city,
-        customer_state: customer.state,
+        customer_id: customer.id || null,
+        customer_name: customer.name || null,
+        customer_email: customer.email || null,
+        customer_phone: customer.phone || customer.phone_number || null,
+        customer_document: customer.document || null,
+        customer_city: customer.city || null,
+        customer_state: customer.state || null,
 
         // Offer / Produto
-        offer_hash: offer.hash,
-        offer_title: offer.title,
-        offer_price: offer.price,
+        offer_hash: offer.hash || null,
+        offer_title: offer.title || null,
+        offer_price: offer.price || null,
 
         // URLs
-        checkout_url: transaction.checkout_url,
-        payment_url: transaction.url,
+        checkout_url: transaction.checkout_url || null,
+        payment_url: transaction.url || null,
 
         // PIX específico
-        pix_code: payload.method === 'pix' ? transaction.pix?.code : null,
-        pix_url: payload.method === 'pix' ? transaction.pix?.url : null,
+        pix_code: payload.method === 'pix' ? (transaction.pix?.code || null) : null,
+        pix_url: payload.method === 'pix' ? (transaction.pix?.url || null) : null,
 
         // Tracking / UTMs
-        utm_source: tracking.utm_source,
-        utm_medium: tracking.utm_medium,
-        utm_campaign: tracking.utm_campaign,
-        utm_term: tracking.utm_term,
-        utm_content: tracking.utm_content,
-        src: tracking.src,
+        utm_source: tracking.utm_source || null,
+        utm_medium: tracking.utm_medium || null,
+        utm_campaign: tracking.utm_campaign || null,
+        utm_term: tracking.utm_term || null,
+        utm_content: tracking.utm_content || null,
+        src: tracking.src || null,
 
         // Metadata
-        ip: payload.ip,
-        fbp: payload.fbp,
-        fbc: payload.fbc,
-        platform: payload.platform,
+        ip: payload.ip || null,
+        fbp: payload.fbp || null,
+        fbc: payload.fbc || null,
+        platform: payload.platform || null,
 
         // Timestamps
         created_at: admin.firestore.FieldValue.serverTimestamp(),
-        gateway_created_at: payload.created_at,
-        paid_at: payload.paid_at,
-        refund_at: payload.refund_at,
+        gateway_created_at: payload.created_at || null,
+        paid_at: payload.paid_at || null,
+        refund_at: payload.refund_at || null,
 
         // Para queries
         is_conversion: payload.status === 'paid',
@@ -152,19 +165,22 @@ async function handleTransaction(payload) {
         is_pending: payload.status === 'waiting_payment'
     };
 
+    // Remove undefined
+    const cleanData = cleanUndefined(transactionData);
+
     // Salva ou atualiza transação
     const docId = transaction.id || payload.token || `tx_${Date.now()}`;
-    await db.collection('transactions').doc(docId).set(transactionData, { merge: true });
+    await db.collection('transactions').doc(docId).set(cleanData, { merge: true });
     console.log('💳 Transação salva:', docId, internalStatus);
 
     // Se for PIX pago, salva evento de conversão
     if (payload.status === 'paid' && payload.method === 'pix') {
-        await saveConversionEvent(transactionData);
+        await saveConversionEvent(cleanData);
     }
 
     // Atualiza usuário se tiver email
     if (customer.email) {
-        await updateUserFromTransaction(customer, transactionData);
+        await updateUserFromTransaction(customer, cleanData);
     }
 
     return docId;
@@ -182,42 +198,43 @@ async function handleCartAbandoned(payload) {
         abandoned_id: payload.abandoned_id,
 
         // Cliente
-        customer_hash: customer.hash,
-        customer_name: customer.name,
-        customer_email: customer.email,
-        customer_phone: customer.phone || customer.phone_number,
-        customer_document: customer.document,
+        customer_hash: customer.hash || null,
+        customer_name: customer.name || null,
+        customer_email: customer.email || null,
+        customer_phone: customer.phone || customer.phone_number || null,
+        customer_document: customer.document || null,
 
         // Offer
-        offer_hash: offer.hash,
-        offer_title: offer.title,
-        offer_price: offer.price,
+        offer_hash: offer.hash || null,
+        offer_title: offer.title || null,
+        offer_price: offer.price || null,
 
         // URLs
-        checkout_url: payload.checkout_url,
+        checkout_url: payload.checkout_url || null,
 
         // Tracking
-        utm_source: tracking.utm_source,
-        utm_medium: tracking.utm_medium,
-        utm_campaign: tracking.utm_campaign,
-        src: tracking.src,
+        utm_source: tracking.utm_source || null,
+        utm_medium: tracking.utm_medium || null,
+        utm_campaign: tracking.utm_campaign || null,
+        src: tracking.src || null,
 
         // Metadata
-        ip: payload.ip,
-        platform: payload.platform,
+        ip: payload.ip || null,
+        platform: payload.platform || null,
 
         // Timestamps
         created_at: admin.firestore.FieldValue.serverTimestamp(),
-        gateway_created_at: payload.created_at
+        gateway_created_at: payload.created_at || null
     };
 
+    const cleanData = cleanUndefined(abandonData);
     const docId = `abandon_${payload.abandoned_id || Date.now()}`;
-    await db.collection('cart_abandons').doc(docId).set(abandonData);
+    await db.collection('cart_abandons').doc(docId).set(cleanData);
     console.log('🛒 Abandono salvo:', docId, customer.email);
 
     // Marca usuário como abandonou checkout
     if (customer.email) {
-        await markUserAsCheckoutAbandoned(customer, abandonData);
+        await markUserAsCheckoutAbandoned(customer, cleanData);
     }
 
     return docId;
@@ -241,7 +258,9 @@ async function saveConversionEvent(transactionData) {
         server_timestamp: admin.firestore.FieldValue.serverTimestamp()
     };
 
-    await db.collection('events').add(event);
+    // cleanUndefined não é necessário aqui pois construímos o objeto explicitamente,
+    // mas transactionData já está limpo.
+    await db.collection('events').add(cleanUndefined(event));
     console.log('🎉 Conversão registrada:', transactionData.transaction_id);
 }
 
@@ -250,12 +269,12 @@ async function saveConversionEvent(transactionData) {
  */
 async function updateUserFromTransaction(customer, transactionData) {
     const userData = {
-        name: customer.name,
-        email: customer.email,
-        phone: customer.phone || customer.phone_number,
-        document: customer.document,
-        city: customer.city,
-        state: customer.state,
+        name: customer.name || null,
+        email: customer.email || null,
+        phone: customer.phone || customer.phone_number || null,
+        document: customer.document || null,
+        city: customer.city || null,
+        state: customer.state || null,
 
         // Status de compra
         has_purchase: transactionData.is_conversion,
@@ -263,13 +282,13 @@ async function updateUserFromTransaction(customer, transactionData) {
         last_transaction_status: transactionData.gateway_status,
 
         // UTMs da compra
-        purchase_utm_source: transactionData.utm_source,
-        purchase_utm_campaign: transactionData.utm_campaign
+        purchase_utm_source: transactionData.utm_source || null,
+        purchase_utm_campaign: transactionData.utm_campaign || null
     };
 
     // Usa email como ID do documento
     const docId = customer.email.replace(/[^a-zA-Z0-9]/g, '_');
-    await db.collection('users').doc(docId).set(userData, { merge: true });
+    await db.collection('users').doc(docId).set(cleanUndefined(userData), { merge: true });
 }
 
 /**
@@ -277,19 +296,19 @@ async function updateUserFromTransaction(customer, transactionData) {
  */
 async function markUserAsCheckoutAbandoned(customer, abandonData) {
     const userData = {
-        name: customer.name,
-        email: customer.email,
-        phone: customer.phone || customer.phone_number,
+        name: customer.name || null,
+        email: customer.email || null,
+        phone: customer.phone || customer.phone_number || null,
 
         // Status de abandono
         checkout_abandoned: true,
         checkout_abandoned_at: admin.firestore.FieldValue.serverTimestamp(),
-        abandoned_offer: abandonData.offer_title,
-        abandoned_price: abandonData.offer_price
+        abandoned_offer: abandonData.offer_title || null,
+        abandoned_price: abandonData.offer_price || null
     };
 
     const docId = customer.email.replace(/[^a-zA-Z0-9]/g, '_');
-    await db.collection('users').doc(docId).set(userData, { merge: true });
+    await db.collection('users').doc(docId).set(cleanUndefined(userData), { merge: true });
 }
 
 // =====================

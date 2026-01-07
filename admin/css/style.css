@@ -1090,6 +1090,64 @@ body {
 }
 
 /* ==================== */
+/* Webhook Logs Section */
+/* ==================== */
+
+.logs-section {
+  margin-bottom: 30px;
+}
+
+.logs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 20px;
+}
+
+.logs-card {
+  padding: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.logs-card h3 {
+  margin-bottom: 16px;
+  font-size: 1rem;
+}
+
+.log-item {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+
+.log-item.error {
+  border-left: 3px solid var(--danger-400);
+}
+
+.log-item.success {
+  border-left: 3px solid var(--success-400);
+}
+
+.log-time {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.log-message {
+  color: var(--text-primary);
+}
+
+.log-details {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  margin-top: 4px;
+}
+
+/* ==================== */
 /* Specific Metrics Section */
 /* ==================== */
 

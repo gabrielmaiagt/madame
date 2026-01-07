@@ -274,6 +274,34 @@
       </div>
     </section>
 
+    <!-- Webhook Logs & Errors -->
+    <section class="logs-section">
+      <h2 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px; color: white;">
+        📋 Logs do Webhook
+        <button id="refresh-logs-btn" class="btn btn-secondary" style="font-size: 0.75rem; padding: 4px 12px;">
+          🔄 Atualizar
+        </button>
+      </h2>
+
+      <div class="logs-grid">
+        <!-- Webhook Errors -->
+        <div class="card logs-card">
+          <h3 style="color: var(--danger-400);">⚠️ Erros do Webhook</h3>
+          <div id="webhook-errors">
+            <p class="no-data">Nenhum erro registrado</p>
+          </div>
+        </div>
+
+        <!-- Webhook Success -->
+        <div class="card logs-card">
+          <h3 style="color: var(--success-400);">✅ Logs de Sucesso</h3>
+          <div id="webhook-success">
+            <p class="no-data">Nenhum log ainda</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- Footer -->
     <footer style="text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem;">
       <p>Madames Online Admin Dashboard • Firebase Firestore</p>
