@@ -1,37 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Eventos - leitura pública para admin, escrita pública
-    match /events/{eventId} {
-      allow read: if true;
-      allow create: if true;
-    }
-    
-    // Users - leitura pública para admin, escrita pública
-    match /users/{userId} {
-      allow read: if true;
-      allow write: if true;
-    }
-    
-    // Transactions - leitura pública para admin
-    match /transactions/{transactionId} {
-      allow read: if true;
-      allow create, update: if false; // Apenas webhook
-      allow delete: if true;
-    }
-    
-    // Cart abandons
-    match /cart_abandons/{abandonId} {
-      allow read: if true;
-      allow create, update: if false;
-      allow delete: if true;
-    }
-    
-    // Webhook errors
-    match /webhook_errors/{errorId} {
-      allow read: if true;
-      allow create, update: if false;
-      allow delete: if true;
+    // Acesso total para ambiente de desenvolvimento/teste
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }

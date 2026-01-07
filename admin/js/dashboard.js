@@ -1765,20 +1765,28 @@
 
     // Helper para limpar coleção
     async function wipeCollection(collectionName) {
-        if (!db) return;
-        const batchSize = 100;
-        const query = db.collection(collectionName).orderBy('__name__').limit(batchSize);
+        if (!db) {
+            console.error(`❌ Erro ao limpar ${collectionName}: Firestore (db) não inicializado`);
+            return;
+        }
 
-        return new Promise((resolve, reject) => {
-            deleteQueryBatch(db, query, resolve).catch(reject);
-        });
+        console.log(`🧹 Limpando coleção: ${collectionName}...`);
+        const batchSize = 100;
+        const query = db.collection(collectionName).limit(batchSize);
+
+        try {
+            await deleteQueryBatch(db, query);
+            console.log(`✅ Coleção ${collectionName} limpa com sucesso.`);
+        } catch (error) {
+            console.error(`❌ Erro ao limpar coleção ${collectionName}:`, error);
+            throw error; // Repassa para o Promise.all capturar
+        }
     }
 
-    async function deleteQueryBatch(db, query, resolve) {
+    async function deleteQueryBatch(db, query) {
         const snapshot = await query.get();
 
         if (snapshot.size === 0) {
-            resolve();
             return;
         }
 
@@ -1790,9 +1798,7 @@
         await batch.commit();
 
         // Recurse until empty
-        setTimeout(() => {
-            deleteQueryBatch(db, query, resolve);
-        }, 10);
+        return deleteQueryBatch(db, query);
     }
 
 
