@@ -1678,9 +1678,11 @@
         const clearBtn = document.getElementById('clear-btn');
         if (clearBtn) {
             clearBtn.addEventListener('click', function () {
-                if (confirm('Tem certeza que deseja limpar todos os eventos? Esta ação não pode ser desfeita.')) {
+                if (confirm('Tem certeza que deseja limpar todos os eventos LOCAIS? (Dados do servidor não serão apagados)')) {
                     localStorage.removeItem('madames_funnel_events');
+                    localStorage.removeItem('madames_user_data');
                     refreshDashboard();
+                    window.location.reload();
                 }
             });
         }
