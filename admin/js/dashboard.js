@@ -1684,53 +1684,111 @@
         // Bind do botão de limpar
         const clearBtn = document.getElementById('clear-btn');
         if (clearBtn) {
-            clearBtn.addEventListener('click', function () {
-                if (confirm('Tem certeza que deseja limpar todos os eventos LOCAIS? (Dados do servidor não serão apagados)')) {
-                    localStorage.removeItem('madames_funnel_events');
-                    localStorage.removeItem('madames_user_data');
-                    refreshDashboard();
-                    window.location.reload();
+            clearBtn.addEventListener('click', async function () {
+                if (confirm('⚠️ PERIGO: Isso vai apagar TODOS os dados doSERVIDOR (Leads, Vendas, Histórico). Tem certeza absoluta?')) {
+                    if (confirm('Confirmação final: Deseja realmente ZERAR todo o banco de dados?')) {
+                        const originalText = clearBtn.innerText;
+                        clearBtn.innerText = 'Apagando...';
+                        clearBtn.disabled = true;
+
+                        try {
+                            // Wipes collections
+                            await Promise.all([
+                                wipeCollection('users'),
+                                wipeCollection('events'),
+                                wipeCollection('transactions'),
+                                wipeCollection('cart_abandons'),
+                                wipeCollection('webhook_errors')
+                            ]);
+
+                            // Clear local
+                            localStorage.removeItem('madames_funnel_events');
+                            localStorage.removeItem('madames_user_data');
+
+                            alert('Banco de dados limpo com sucesso!');
+                            window.location.reload();
+                        } catch (error) {
+                            console.error('Erro ao limpar:', error);
+                            alert('Erro ao limpar dados: ' + error.message);
+                            clearBtn.innerText = originalText;
+                            clearBtn.disabled = false;
+                        }
+                    }
                 }
             });
         }
+    }
+
+    // Helper para limpar coleção
+    async function wipeCollection(collectionName) {
+        if (!db) return;
+        const batchSize = 100;
+        const query = db.collection(collectionName).orderBy('__name__').limit(batchSize);
+
+        return new Promise((resolve, reject) => {
+            deleteQueryBatch(db, query, resolve).catch(reject);
+        });
+    }
+
+    async function deleteQueryBatch(db, query, resolve) {
+        const snapshot = await query.get();
+
+        if (snapshot.size === 0) {
+            resolve();
+            return;
+        }
+
+        const batch = db.batch();
+        snapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+
+        await batch.commit();
+
+        // Recurse until empty
+        setTimeout(() => {
+            deleteQueryBatch(db, query, resolve);
+        }, 10);
+    }
+}
 
         // Bind do botão de refresh
         const refreshBtn = document.getElementById('refresh-btn');
-        if (refreshBtn) {
-            refreshBtn.addEventListener('click', refreshDashboard);
-        }
+if (refreshBtn) {
+    refreshBtn.addEventListener('click', refreshDashboard);
+}
 
-        // Bind do botão de refresh logs
-        const refreshLogsBtn = document.getElementById('refresh-logs-btn');
-        if (refreshLogsBtn) {
-            refreshLogsBtn.addEventListener('click', renderWebhookLogs);
-        }
+// Bind do botão de refresh logs
+const refreshLogsBtn = document.getElementById('refresh-logs-btn');
+if (refreshLogsBtn) {
+    refreshLogsBtn.addEventListener('click', renderWebhookLogs);
+}
 
-        // Renderiza dashboard inicial
-        refreshDashboard();
+// Renderiza dashboard inicial
+refreshDashboard();
 
-        // Renderiza logs do webhook
-        renderWebhookLogs();
+// Renderiza logs do webhook
+renderWebhookLogs();
 
-        // Auto-refresh a cada 30 segundos
-        setInterval(refreshDashboard, 30000);
+// Auto-refresh a cada 30 segundos
+setInterval(refreshDashboard, 30000);
 
-        console.log('📊 Dashboard inicializado');
+console.log('📊 Dashboard inicializado');
     }
 
-    // Inicia quando o DOM estiver pronto
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
+// Inicia quando o DOM estiver pronto
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+
+// Expõe funções globalmente para debug
+window.MadamesDashboard = {
+    refresh: refreshDashboard,
+    getMetrics: function () {
+        return calculateMetrics(getStoredEvents());
     }
+};
 
-    // Expõe funções globalmente para debug
-    window.MadamesDashboard = {
-        refresh: refreshDashboard,
-        getMetrics: function () {
-            return calculateMetrics(getStoredEvents());
-        }
-    };
-
-})();
+}) ();
