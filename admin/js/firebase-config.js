@@ -60,6 +60,11 @@ const MadamesFirestore = {
         return db !== null;
     },
 
+    // Remove undefined values (Firestore crashes with undefined)
+    cleanData: function (obj) {
+        return JSON.parse(JSON.stringify(obj));
+    },
+
     // Salva evento de tracking
     saveEvent: async function (eventData) {
         if (!this.isReady()) {
@@ -68,10 +73,12 @@ const MadamesFirestore = {
         }
 
         try {
-            const docRef = await db.collection('events').add({
+            const data = this.cleanData({
                 ...eventData,
                 server_timestamp: firebase.firestore.FieldValue.serverTimestamp()
             });
+
+            const docRef = await db.collection('events').add(data);
             console.log('📊 Evento salvo no Firestore:', docRef.id);
             return docRef.id;
         } catch (error) {
@@ -93,10 +100,13 @@ const MadamesFirestore = {
             delete safeData.password;
             delete safeData.confirmPassword;
 
-            await db.collection('users').doc(sessionId).set({
+            // Remove undefined
+            const cleanUser = this.cleanData({
                 ...safeData,
                 updated_at: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            });
+
+            await db.collection('users').doc(sessionId).set(cleanUser, { merge: true });
 
             console.log('👤 Dados do usuário salvos:', sessionId);
             return true;
@@ -111,11 +121,13 @@ const MadamesFirestore = {
         if (!this.isReady()) return false;
 
         try {
-            await db.collection('users').doc(sessionId).set({
+            const data = this.cleanData({
                 funnel_stage: stage,
                 funnel_stage_updated_at: firebase.firestore.FieldValue.serverTimestamp(),
                 ...additionalData
-            }, { merge: true });
+            });
+
+            await db.collection('users').doc(sessionId).set(data, { merge: true });
 
             console.log('🎯 Funil atualizado:', stage);
             return true;
