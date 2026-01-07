@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Eventos - apenas leitura autenticada, escrita via Cloud Functions
+    match /events/{eventId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Somente Cloud Functions
+    }
+    
+    // Users - leitura autenticada para remarketing
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Somente Cloud Functions
+    }
+    
+    // Transactions - apenas leitura autenticada
+    match /transactions/{transactionId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Somente via webhook
+    }
+    
+    // Cart abandons - apenas leitura autenticada
+    match /cart_abandons/{abandonId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+  }
+}

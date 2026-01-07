@@ -1,0 +1,25 @@
+{
+  "name": "madames-functions",
+  "description": "Cloud Functions for Madames Online - Webhook de pagamentos",
+  "scripts": {
+    "lint": "eslint .",
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "firebase-admin": "^13.6.0",
+    "firebase-functions": "^7.0.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.15.0"
+  },
+  "private": true
+}

@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Madames Online</title>
+  <meta name="robots" content="noindex, nofollow">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <style>
+    /* Estilos inline adicionais para garantir funcionalidade */
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.3s ease;
+    }
+
+    .loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--primary-500);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <div class="admin-container">
+    <!-- Header -->
+    <header class="admin-header">
+      <div class="admin-logo">
+        <div class="admin-logo-icon">🎯</div>
+        <h1>Admin Dashboard</h1>
+      </div>
+
+      <div class="admin-controls">
+        <div class="select-wrapper">
+          <select id="period-select">
+            <option value="all">Todo período</option>
+            <option value="today">Hoje</option>
+            <option value="7days" selected>Últimos 7 dias</option>
+            <option value="30days">Últimos 30 dias</option>
+          </select>
+        </div>
+
+        <button class="btn btn-secondary" id="refresh-btn">
+          🔄 Atualizar
+        </button>
+
+        <button class="btn btn-secondary" id="export-btn">
+          📥 Exportar
+        </button>
+
+        <button class="btn btn-danger" id="clear-btn">
+          🗑️ Limpar
+        </button>
+      </div>
+    </header>
+
+    <!-- KPIs -->
+    <section class="kpi-section">
+      <div class="kpi-grid" id="kpi-container">
+        <!-- KPIs serão renderizados via JS -->
+      </div>
+    </section>
+
+    <!-- Alerta de Gargalo e Métricas Avançadas -->
+    <section class="bottleneck-section">
+      <div class="bottleneck-grid">
+        <!-- Alerta de Gargalo Principal -->
+        <div class="card bottleneck-wrapper">
+          <h3>🚨 Detecção de Gargalo</h3>
+          <div id="bottleneck-alert">
+            <p class="no-data">Analisando funil...</p>
+          </div>
+        </div>
+
+        <!-- Métricas Avançadas -->
+        <div class="card advanced-wrapper">
+          <h3>📈 Métricas Avançadas</h3>
+          <div id="advanced-metrics">
+            <p class="no-data">Calculando...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Funil Visual -->
+    <section class="funnel-section">
+      <div class="card" style="padding: 24px;">
+        <h2 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+          📊 Funil de Conversão
+          <span id="event-count" style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 400;"></span>
+        </h2>
+        <div class="funnel-container" id="funnel-container">
+          <!-- Funil será renderizado via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Gráficos -->
+    <section class="charts-grid">
+      <!-- UTM Sources -->
+      <div class="card chart-card">
+        <h3>🌐 Origem do Tráfego (UTM)</h3>
+        <div id="utm-sources">
+          <!-- UTM sources serão renderizadas via JS -->
+        </div>
+      </div>
+
+      <!-- CTA Clicks -->
+      <div class="card chart-card">
+        <h3>🖱️ CTAs Mais Clicados</h3>
+        <div id="cta-clicks">
+          <!-- CTA clicks serão renderizados via JS -->
+        </div>
+      </div>
+
+      <!-- Device Stats -->
+      <div class="card chart-card">
+        <h3>📱 Dispositivos</h3>
+        <div id="device-stats">
+          <!-- Device stats serão renderizadas via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Métricas Específicas do Funil -->
+    <section class="specific-metrics-section">
+      <h2 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px; color: white;">
+        📈 Análise Detalhada por Etapa
+      </h2>
+
+      <div class="specific-metrics-grid">
+        <!-- Cadastro -->
+        <div class="card metric-card">
+          <h3>📝 Análise de Cadastro</h3>
+          <div id="registration-metrics">
+            <p class="no-data">Coletando dados...</p>
+          </div>
+        </div>
+
+        <!-- Swipes -->
+        <div class="card metric-card">
+          <h3>💕 Swipes (Discover)</h3>
+          <div id="swipe-metrics">
+            <p class="no-data">Coletando dados...</p>
+          </div>
+        </div>
+
+        <!-- Popup Saque -->
+        <div class="card metric-card">
+          <h3>💰 Popup de Saque</h3>
+          <div id="withdraw-metrics">
+            <p class="no-data">Coletando dados...</p>
+          </div>
+        </div>
+
+        <!-- Paywall -->
+        <div class="card metric-card">
+          <h3>🔒 Paywall (R$19,90)</h3>
+          <div id="paywall-metrics">
+            <p class="no-data">Coletando dados...</p>
+          </div>
+        </div>
+
+        <!-- Checkout -->
+        <div class="card metric-card">
+          <h3>💳 Checkout</h3>
+          <div id="checkout-metrics">
+            <p class="no-data">Coletando dados...</p>
+          </div>
+        </div>
+
+        <!-- Chat -->
+        <div class="card metric-card">
+          <h3>💬 Engajamento no Chat</h3>
+          <div id="chat-engagement-metrics">
+            <p class="no-data">Coletando dados...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Eventos Recentes -->
+    <section class="events-section">
+      <div class="card" style="padding: 24px;">
+        <h2 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+          📋 Eventos Recentes
+        </h2>
+        <div class="events-table-container">
+          <table class="events-table">
+            <thead>
+              <tr>
+                <th>Data/Hora</th>
+                <th>Tipo</th>
+                <th>Página</th>
+                <th>Detalhe</th>
+                <th>Dispositivo</th>
+              </tr>
+            </thead>
+            <tbody id="events-table-body">
+              <!-- Eventos serão renderizados via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    <!-- Leads & Remarketing (Firestore) -->
+    <section class="remarketing-section">
+      <h2 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px; color: white;">
+        🎯 Leads & Remarketing
+        <span id="firestore-status"
+          style="font-size: 0.75rem; padding: 4px 10px; border-radius: 12px; background: rgba(234, 179, 8, 0.2); color: #facc15;">
+          ⏳ Conectando...
+        </span>
+      </h2>
+
+      <div class="remarketing-grid">
+        <!-- Leads Capturados -->
+        <div class="card remarketing-card">
+          <h3>👤 Leads Capturados</h3>
+          <div id="leads-list">
+            <p class="no-data">Conecte o Firestore para ver leads</p>
+          </div>
+        </div>
+
+        <!-- Transações PIX -->
+        <div class="card remarketing-card">
+          <h3>💳 Transações PIX</h3>
+          <div id="transactions-list">
+            <p class="no-data">Conecte o Firestore para ver transações</p>
+          </div>
+        </div>
+
+        <!-- Abandonos de Checkout -->
+        <div class="card remarketing-card">
+          <h3>🛒 Abandonos de Checkout</h3>
+          <div id="abandons-list">
+            <p class="no-data">Conecte o Firestore para ver abandonos</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer style="text-align: center; padding: 30px; color: var(--text-muted); font-size: 0.85rem;">
+      <p>Madames Online Admin Dashboard • Firebase Firestore</p>
+      <p style="margin-top: 8px; font-size: 0.75rem;">
+        Webhook: us-central1-madame-67e19.cloudfunctions.net/paymentWebhook
+      </p>
+    </footer>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics-compat.js"></script>
+
+  <!-- App Scripts -->
+  <script src="js/firebase-config.js"></script>
+  <script src="js/tracking.js"></script>
+  <script src="js/dashboard.js"></script>
+
+  <script>
+    // Remove loading overlay quando o dashboard carregar
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        document.getElementById('loading-overlay').classList.add('hidden');
+      }, 500);
+    });
+  </script>
+</body>
+
+</html>
