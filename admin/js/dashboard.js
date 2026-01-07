@@ -1410,8 +1410,15 @@
                 statusEl.style.background = 'rgba(234, 179, 8, 0.2)';
                 statusEl.style.color = '#facc15';
             }
+            // Tenta novamente em 1 segundo (max 10 tentativas para não travar)
+            if (!window._firestoreRetryCount) window._firestoreRetryCount = 0;
+            if (window._firestoreRetryCount < 10) {
+                window._firestoreRetryCount++;
+                setTimeout(renderRemarketingData, 1000);
+            }
             return;
         }
+        window._firestoreRetryCount = 0;
 
         // Firestore conectado
         if (statusEl) {
