@@ -1352,48 +1352,98 @@
     // Inicialização
     // =====================
 
-    function refreshDashboard() {
+    async function refreshDashboard() {
         const periodSelect = document.getElementById('period-select');
         const period = periodSelect ? periodSelect.value : 'all';
+        const loadingOverlay = document.getElementById('loading-overlay');
 
-        let events = getStoredEvents();
-
-        if (period !== 'all') {
-            events = filterEventsByPeriod(events, period);
+        // Mostra loading se for recarga manual
+        if (window.isManualRefresh && loadingOverlay) {
+            loadingOverlay.classList.remove('hidden');
         }
 
-        const metrics = calculateMetrics(events);
-        const specificMetrics = calculateSpecificMetrics(events);
-        const advancedMetrics = calculateBottleneckAndAdvanced(events, metrics);
+        try {
+            console.log('🔄 Iniciando atualização do dashboard...');
 
-        // Renderiza métricas básicas
-        renderKPIs(metrics);
-        renderFunnel(metrics);
-        renderUTMSources(metrics);
-        renderCTAClicks(metrics);
-        renderRecentEvents(metrics);
-        renderDeviceStats(metrics);
+            // 1. Busca eventos do Firestore (Fonte da verdade)
+            let events = [];
 
-        // Renderiza gargalo e métricas avançadas
-        renderBottleneckAlert(advancedMetrics);
-        renderAdvancedMetrics(advancedMetrics);
+            if (window.MadamesFirestore && window.MadamesFirestore.isReady()) {
+                // Calcula data de início baseada no filtro
+                const now = Date.now();
+                let startDate = 0;
 
-        // Renderiza métricas específicas
-        renderRegistrationMetrics(specificMetrics);
-        renderSwipeMetrics(specificMetrics);
-        renderWithdrawMetrics(specificMetrics);
-        renderPaywallMetrics(specificMetrics);
-        renderCheckoutMetrics(specificMetrics);
-        renderChatMetrics(specificMetrics);
+                if (period === 'today') startDate = now - (24 * 60 * 60 * 1000);
+                if (period === '7days') startDate = now - (7 * 24 * 60 * 60 * 1000);
+                if (period === '30days') startDate = now - (30 * 24 * 60 * 60 * 1000);
 
-        // Atualiza contador de eventos
-        const eventCount = document.getElementById('event-count');
-        if (eventCount) {
-            eventCount.textContent = events.length + ' eventos';
+                events = await window.MadamesFirestore.getEvents({
+                    limit: 5000,
+                    startDate: startDate > 0 ? startDate : null
+                });
+
+                console.log(`📊 ${events.length} eventos carregados do Firestore`);
+            } else {
+                console.warn('⚠️ Firestore não pronto, usando localStorage como fallback');
+                events = getStoredEvents();
+            }
+
+            // 2. Filtra localmente se necessário (caso o filtro do Firestore não pegue tudo ou para localStorage)
+            if (period !== 'all') {
+                events = filterEventsByPeriod(events, period);
+            }
+
+            // 3. Calcula métricas
+            const metrics = calculateMetrics(events);
+            const specificMetrics = calculateSpecificMetrics(events);
+            const advancedMetrics = calculateBottleneckAndAdvanced(events, metrics);
+
+            // 4. Renderiza métricas básicas
+            renderKPIs(metrics);
+            renderFunnel(metrics);
+            renderUTMSources(metrics);
+            renderCTAClicks(metrics);
+            renderRecentEvents(metrics);
+            renderDeviceStats(metrics);
+
+            // 5. Renderiza gargalo e métricas avançadas
+            renderBottleneckAlert(advancedMetrics);
+            renderAdvancedMetrics(advancedMetrics);
+
+            // 6. Renderiza métricas específicas
+            renderRegistrationMetrics(specificMetrics);
+            renderSwipeMetrics(specificMetrics);
+            renderWithdrawMetrics(specificMetrics);
+            renderPaywallMetrics(specificMetrics);
+            renderCheckoutMetrics(specificMetrics);
+            renderChatMetrics(specificMetrics);
+
+            // 7. Atualiza contador de eventos
+            const eventCount = document.getElementById('event-count');
+            if (eventCount) {
+                eventCount.textContent = events.length + ' eventos processados';
+            }
+
+            // 8. Renderiza remarketing do Firestore
+            await renderRemarketingData();
+
+        } catch (error) {
+            console.error('❌ Erro fatal ao atualizar dashboard:', error);
+            // Mostra erro na UI para o admin ver
+            const kpiContainer = document.getElementById('kpi-container');
+            if (kpiContainer) {
+                kpiContainer.innerHTML = `<div class="card error-card" style="grid-column: 1/-1; background: #fee2e2; color: #ef4444; border: 1px solid #fecaca; padding: 20px;">
+                    <h3>Erro ao carregar dados</h3>
+                    <p>${error.message}</p>
+                    <small>Verifique o console para mais detalhes.</small>
+                </div>`;
+            }
+        } finally {
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('hidden');
+            }
+            window.isManualRefresh = false;
         }
-
-        // Renderiza remarketing do Firestore
-        renderRemarketingData();
     }
 
     // =====================
@@ -1659,7 +1709,10 @@
         // Bind do seletor de período
         const periodSelect = document.getElementById('period-select');
         if (periodSelect) {
-            periodSelect.addEventListener('change', refreshDashboard);
+            periodSelect.addEventListener('change', () => {
+                window.isManualRefresh = true;
+                refreshDashboard();
+            });
         }
 
         // Bind do botão de exportar
@@ -1668,15 +1721,6 @@
             exportBtn.addEventListener('click', function () {
                 if (window.MadamesTracking) {
                     window.MadamesTracking.exportEvents();
-                } else {
-                    const events = getStoredEvents();
-                    const blob = new Blob([JSON.stringify(events, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'madames_events_' + new Date().toISOString().split('T')[0] + '.json';
-                    a.click();
-                    URL.revokeObjectURL(url);
                 }
             });
         }
@@ -1685,7 +1729,7 @@
         const clearBtn = document.getElementById('clear-btn');
         if (clearBtn) {
             clearBtn.addEventListener('click', async function () {
-                if (confirm('⚠️ PERIGO: Isso vai apagar TODOS os dados doSERVIDOR (Leads, Vendas, Histórico). Tem certeza absoluta?')) {
+                if (confirm('⚠️ PERIGO: Isso vai apagar TODOS os dados do SERVIDOR (Leads, Vendas, Histórico). Tem certeza absoluta?')) {
                     if (confirm('Confirmação final: Deseja realmente ZERAR todo o banco de dados?')) {
                         const originalText = clearBtn.innerText;
                         clearBtn.innerText = 'Apagando...';
@@ -1750,45 +1794,49 @@
             deleteQueryBatch(db, query, resolve);
         }, 10);
     }
-}
 
-        // Bind do botão de refresh
-        const refreshBtn = document.getElementById('refresh-btn');
-if (refreshBtn) {
-    refreshBtn.addEventListener('click', refreshDashboard);
-}
 
-// Bind do botão de refresh logs
-const refreshLogsBtn = document.getElementById('refresh-logs-btn');
-if (refreshLogsBtn) {
-    refreshLogsBtn.addEventListener('click', renderWebhookLogs);
-}
-
-// Renderiza dashboard inicial
-refreshDashboard();
-
-// Renderiza logs do webhook
-renderWebhookLogs();
-
-// Auto-refresh a cada 30 segundos
-setInterval(refreshDashboard, 30000);
-
-console.log('📊 Dashboard inicializado');
+    // Bind do botão de refresh
+    const refreshBtn = document.getElementById('refresh-btn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            window.isManualRefresh = true;
+            refreshDashboard();
+        });
     }
 
-// Inicia quando o DOM estiver pronto
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-} else {
-    init();
-}
-
-// Expõe funções globalmente para debug
-window.MadamesDashboard = {
-    refresh: refreshDashboard,
-    getMetrics: function () {
-        return calculateMetrics(getStoredEvents());
+    // Bind do botão de refresh logs
+    const refreshLogsBtn = document.getElementById('refresh-logs-btn');
+    if (refreshLogsBtn) {
+        refreshLogsBtn.addEventListener('click', renderWebhookLogs);
     }
-};
 
-}) ();
+    // Inicialização com retry para garantir que o Firebase carregou
+    let initAttempts = 0;
+    function tryInit() {
+        if (window.MadamesFirestore && window.MadamesFirestore.isReady()) {
+            console.log('🚀 Firebase pronto, carregando dashboard...');
+            init(); // Executa binds (init)
+            refreshDashboard(); // Carrega dados
+            renderWebhookLogs(); // Carrega logs
+        } else {
+            initAttempts++;
+            if (initAttempts < 20) { // Tenta por ~10 segundos
+                setTimeout(tryInit, 500);
+            } else {
+                console.warn('⚠️ Timeout aguardando Firebase. Carregando modo offline/local.');
+                init();
+                refreshDashboard(); // Tenta carregar o que der (localStorage)
+            }
+        }
+    }
+
+    // Auto-refresh a cada 60 segundos
+    setInterval(refreshDashboard, 60000);
+
+    // Inicia processo
+    tryInit();
+
+    console.log('📊 Dashboard script carregado');
+
+})();
