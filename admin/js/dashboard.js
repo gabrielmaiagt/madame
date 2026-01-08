@@ -92,9 +92,9 @@
     }
 
     function normalizePath(path) {
-        // Normaliza para comparação
+        // Normaliza para comparação (remove query params e hash)
         if (!path) return '/';
-        path = path.toLowerCase();
+        path = path.split('?')[0].split('#')[0].toLowerCase();
         if (!path.endsWith('/')) path += '/';
         return path;
     }
