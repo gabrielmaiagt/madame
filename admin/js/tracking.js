@@ -522,32 +522,44 @@
     }
   });
 
-  // 5. Monitor de Erros Globais (MutationObserver para Toasts/Alertas)
-  const errorObserver = new MutationObserver(function (mutations) {
-    mutations.forEach(function (mutation) {
-      if (mutation.addedNodes.length > 0) {
-        mutation.addedNodes.forEach(function (node) {
-          if (node.nodeType === 1) { // Elemento
-            const text = node.innerText ? node.innerText.toLowerCase() : '';
-            const isError = text.includes('obrigatório') || text.includes('inválido') ||
-              text.includes('curta') || text.includes('erro') ||
-              text.includes('não confere');
-
-            if (isError) {
-              let errorType = 'other';
-              if (text.includes('obrigatório')) errorType = 'required_field';
-              if (text.includes('não confere') || text.includes('diferentes')) errorType = 'password_mismatch';
-              if (text.includes('curta')) errorType = 'password_short';
-
-              window.MadamesTracking.trackFormError(errorType, text.substring(0, 100));
-            }
+  window.MadamesTracking.trackFormError(errorType, text.substring(0, 100));
+}
           }
         });
       }
     });
   });
 
-  errorObserver.observe(document.body, { childList: true, subtree: true });
+errorObserver.observe(document.body, { childList: true, subtree: true });
 
-  console.log('📊 Madames Tracking inicializado');
-})();
+// 6. Monitor de inputs de foto e bio (Específico para Step 2)
+document.addEventListener('change', function (e) {
+  if (e.target.type === 'file') {
+    const label = e.target.closest('label');
+    const text = label ? label.textContent.trim().toLowerCase() : '';
+    let photoIndex = 1;
+    if (text.includes('2')) photoIndex = 2;
+    if (text.includes('3')) photoIndex = 3;
+    window.MadamesTracking.trackPhotoUpload(photoIndex);
+  }
+});
+
+document.addEventListener('blur', function (e) {
+  if (e.target.id === 'bio') {
+    window.MadamesTracking.trackBioFilled(e.target.value.length);
+  }
+}, true);
+
+// 7. Melhoria na detecção de fonte do Popup de Saque
+const originalTrackWithdrawPopup = window.MadamesTracking.trackWithdrawPopup;
+window.MadamesTracking.trackWithdrawPopup = function (action, source) {
+  let detectedSource = source;
+  if (source === 'header' || !source) {
+    if (window.location.pathname.includes('/chat')) detectedSource = 'chat';
+    else if (window.location.pathname.includes('/discover')) detectedSource = 'discover';
+  }
+  originalTrackWithdrawPopup.call(this, action, detectedSource);
+};
+
+console.log('📊 Madames Tracking inicializado');
+}) ();
