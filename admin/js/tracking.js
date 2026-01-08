@@ -550,7 +550,17 @@ document.addEventListener('blur', function (e) {
   }
 }, true);
 
-// 7. Melhoria na detecção de fonte do Popup de Saque
+// 7. Monitor de interesses
+document.addEventListener('click', function (e) {
+  const interest = e.target.closest('.inline-flex.cursor-pointer');
+  if (interest && interest.parentElement && interest.parentElement.classList.contains('flex-wrap')) {
+    const name = interest.textContent.trim();
+    const isSelected = interest.classList.contains('bg-primary-500');
+    window.MadamesTracking.trackInterest(name, !isSelected); // ! porque o clique vai alternar
+  }
+});
+
+// 8. Melhoria na detecção de fonte do Popup de Saque
 const originalTrackWithdrawPopup = window.MadamesTracking.trackWithdrawPopup;
 window.MadamesTracking.trackWithdrawPopup = function (action, source) {
   let detectedSource = source;
