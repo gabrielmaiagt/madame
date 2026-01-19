@@ -1,0 +1,202 @@
+/* ============================================
+   MOBILE PERFORMANCE OPTIMIZATION
+   Otimizações críticas para dispositivos móveis
+   ============================================ */
+
+/* GPU Acceleration para elementos comuns */
+.card,
+.button,
+.profile-card,
+.swipe-card,
+[class*="transition"],
+[class*="animate"] {
+    transform: translateZ(0);
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+/* Otimização de scroll para mobile */
+.scrollable,
+.overflow-auto,
+.overflow-y-auto,
+[class*="overflow"] {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    overscroll-behavior-y: contain;
+}
+
+/* Previne janking em transições */
+* {
+    -webkit-tap-highlight-color: transparent;
+    tap-highlight-color: transparent;
+}
+
+/* Otimiza fontes para mobile */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* Reduz animações em dispositivos com bateria fraca ou preferência do usuário */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Otimizações específicas para mobile */
+@media (max-width: 768px) {
+
+    /* Reduz complexidade de sombras em mobile */
+    [class*="shadow"] {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    /* Simplifica gradientes complexos */
+    [class*="gradient"] {
+        background-attachment: scroll !important;
+    }
+
+    /* Otimiza imagens */
+    img {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+    }
+
+    /* Melhora performance de blur/backdrop */
+    [class*="blur"],
+    [class*="backdrop"] {
+        backdrop-filter: blur(8px) !important;
+        -webkit-backdrop-filter: blur(8px) !important;
+    }
+
+    /* Touch-friendly buttons */
+    button,
+    a,
+    [role="button"] {
+        min-height: 44px;
+        min-width: 44px;
+        touch-action: manipulation;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    /* Exceção para botão de saldo no header - mantém tamanho original */
+    header button {
+        min-height: auto;
+        min-width: auto;
+    }
+
+    /* Previne zoom em inputs */
+    input,
+    select,
+    textarea {
+        font-size: 16px !important;
+        touch-action: manipulation;
+    }
+
+    /* Otimiza transições para mobile */
+    .transition,
+    .transition-all,
+    [class*="transition-"] {
+        transition-duration: 0.2s !important;
+        transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    /* Animações mais rápidas em mobile */
+    [class*="animate-"] {
+        animation-duration: 0.25s !important;
+    }
+
+    /* Otimiza fixed/sticky elements */
+    .fixed,
+    .sticky,
+    [class*="fixed"],
+    [class*="sticky"] {
+        transform: translateZ(0);
+        will-change: transform;
+    }
+}
+
+/* Otimizações para conexões lentas */
+@media (prefers-reduced-data: reduce) {
+
+    /* Desabilita backgrounds pesados */
+    [style*="background-image"] {
+        background-image: none !important;
+    }
+
+    /* Simplifica animações */
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+/* Touch gesture optimization */
+.swipeable,
+.draggable,
+[data-swipeable="true"] {
+    touch-action: pan-y pinch-zoom;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: grab;
+    will-change: transform;
+}
+
+.swipeable:active,
+.draggable:active {
+    cursor: grabbing;
+}
+
+/* Prevent double-tap zoom on buttons */
+button,
+a[role="button"],
+.btn {
+    touch-action: manipulation;
+}
+
+/* Lazy loading placeholder */
+img[loading="lazy"] {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Content visibility for faster rendering */
+.below-fold {
+    content-visibility: auto;
+    contain-intrinsic-size: 500px;
+}
+
+/* Reduce repaints on scroll */
+.scroll-container {
+    contain: layout style paint;
+}
+
+/* Fast click for mobile */
+a,
+button,
+[role="button"],
+[onclick] {
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+}

@@ -109,8 +109,8 @@
             uniqueSessions: new Set(),
             funnelSteps: {},
             ctaClicks: {},
-            utmSources: {},
-            devices: { browsers: {}, os: {} },
+            utmSources: {}, // Agora armazena Set de sessions por source
+            devices: { browsers: {}, os: {} }, // Agora armazena Set de sessions
             conversions: 0,
             avgTimeByPage: {},
             recentEvents: []
@@ -125,6 +125,10 @@
                 shortName: step.shortName
             };
         });
+
+        // Rastreia sessões para UTM e Device (para contar unique visitors)
+        const sessionUtms = new Map(); // session_id -> utm_source
+        const sessionDevices = new Map(); // session_id -> {browser, os}
 
         // Processa eventos
         events.forEach(event => {
@@ -157,21 +161,27 @@
                 metrics.ctaClicks[ctaName] = (metrics.ctaClicks[ctaName] || 0) + 1;
             }
 
-            // UTM sources
-            if (event.utms && event.utms.utm_source) {
+            // UTM sources - rastreia por sessão
+            if (event.session_id && event.utms && event.utms.utm_source) {
                 const source = event.utms.utm_source;
-                metrics.utmSources[source] = (metrics.utmSources[source] || 0) + 1;
+                sessionUtms.set(event.session_id, source);
             }
 
-            // Devices
-            if (event.device) {
-                if (event.device.browser) {
-                    metrics.devices.browsers[event.device.browser] =
-                        (metrics.devices.browsers[event.device.browser] || 0) + 1;
+            // Rastreia sessões sem UTM (tráfego direto/orgânico)
+            if (event.session_id && event.event_type === 'page_view') {
+                if (!sessionUtms.has(event.session_id) &&
+                    (!event.utms || !event.utms.utm_source)) {
+                    sessionUtms.set(event.session_id, 'Direto/Orgânico');
                 }
-                if (event.device.os) {
-                    metrics.devices.os[event.device.os] =
-                        (metrics.devices.os[event.device.os] || 0) + 1;
+            }
+
+            // Devices - rastreia por sessão
+            if (event.session_id && event.device) {
+                if (!sessionDevices.has(event.session_id)) {
+                    sessionDevices.set(event.session_id, {
+                        browser: event.device.browser || 'Desconhecido',
+                        os: event.device.os || 'Desconhecido'
+                    });
                 }
             }
 
@@ -197,6 +207,34 @@
         Object.keys(metrics.avgTimeByPage).forEach(page => {
             const data = metrics.avgTimeByPage[page];
             metrics.avgTimeByPage[page].avg = data.count > 0 ? data.total / data.count : 0;
+        });
+
+        // Converte sessionUtms e sessionDevices para contagens únicas
+        sessionUtms.forEach((source, sessionId) => {
+            if (!metrics.utmSources[source]) {
+                metrics.utmSources[source] = new Set();
+            }
+            metrics.utmSources[source].add(sessionId);
+        });
+
+        sessionDevices.forEach((device, sessionId) => {
+            if (!metrics.devices.browsers[device.browser]) {
+                metrics.devices.browsers[device.browser] = new Set();
+            }
+            metrics.devices.browsers[device.browser].add(sessionId);
+
+            if (!metrics.devices.os[device.os]) {
+                metrics.devices.os[device.os] = new Set();
+            }
+            metrics.devices.os[device.os].add(sessionId);
+        });
+
+        // Validação: alerta se pageviews sem session_id
+        Object.keys(metrics.funnelSteps).forEach(path => {
+            const step = metrics.funnelSteps[path];
+            if (step.pageviews > 0 && step.visitors.size === 0) {
+                console.warn(`⚠️ ATENÇÃO: ${path} tem ${step.pageviews} pageviews mas 0 sessões únicas. Eventos sem session_id!`);
+            }
         });
 
         // Eventos recentes (últimos 50)
@@ -259,7 +297,7 @@
 
         FUNNEL_STEPS.forEach((step, index) => {
             const stepData = metrics.funnelSteps[step.path];
-            const visitors = stepData.visitors.size || stepData.pageviews;
+            const visitors = stepData.visitors.size; // Sempre usa sessões únicas
 
             if (previousVisitors !== null && previousVisitors > 0) {
                 const dropRate = ((previousVisitors - visitors) / previousVisitors) * 100;
@@ -548,27 +586,44 @@
                     break;
 
                 case 'paywall':
+                    const pwSource = event.source || 'unknown';
                     if (event.action === 'view') {
                         specific.paywall.views++;
-                        const pwSource = event.source || 'chat';
-                        if (specific.paywall.bySource[pwSource] !== undefined) {
-                            specific.paywall.bySource[pwSource]++;
+                        // Track por source detalhado
+                        if (!specific.paywall.bySource[pwSource]) {
+                            specific.paywall.bySource[pwSource] = { views: 0, clicks: 0, conversions: 0, revenue: 0 };
                         }
+                        specific.paywall.bySource[pwSource].views++;
                     }
                     if (event.action === 'click_checkout') {
                         specific.paywall.clickedCheckout++;
+                        if (specific.paywall.bySource[pwSource]) {
+                            specific.paywall.bySource[pwSource].clicks++;
+                        }
                     }
                     break;
 
                 case 'checkout':
-                    if (event.action === 'init') specific.checkout.initiated++;
+                    if (event.action === 'init' || event.action === 'initiate') {
+                        specific.checkout.initiated++;
+                    }
                     if (event.action === 'complete') {
                         specific.checkout.completed++;
-                        specific.checkout.totalRevenue += event.price || 19.90;
-                    }
-                    if (event.action === 'abandon') specific.checkout.abandoned++;
-                    break;
+                        const revenue = event.price || 19.90;
+                        specific.checkout.totalRevenue += revenue;
 
+                        // 🎯 Associa conversão ao source do paywall
+                        const checkoutSource = event.source || 'direct';
+                        if (!specific.paywall.bySource[checkoutSource]) {
+                            specific.paywall.bySource[checkoutSource] = { views: 0, clicks: 0, conversions: 0, revenue: 0 };
+                        }
+                        specific.paywall.bySource[checkoutSource].conversions++;
+                        specific.paywall.bySource[checkoutSource].revenue += revenue;
+                    }
+                    if (event.action === 'abandon') {
+                        specific.checkout.abandoned++;
+                    }
+                    break;
                 case 'chat_message':
                     if (event.action === 'sent') specific.chat.messagesSent++;
                     if (event.action === 'read') specific.chat.messagesRead++;
@@ -614,10 +669,8 @@
         if (!kpiContainer) return;
 
         const uniqueVisitors = metrics.uniqueSessions.size;
-        const landingVisitors = metrics.funnelSteps['/app/'].visitors.size ||
-            metrics.funnelSteps['/app/'].pageviews;
-        const chatVisitors = metrics.funnelSteps['/chat/'].visitors.size ||
-            metrics.funnelSteps['/chat/'].pageviews;
+        const landingVisitors = metrics.funnelSteps['/app/'].visitors.size;
+        const chatVisitors = metrics.funnelSteps['/chat/'].visitors.size;
 
         const conversionRate = landingVisitors > 0
             ? ((chatVisitors / landingVisitors) * 100).toFixed(1)
@@ -635,8 +688,7 @@
         const avgTime = timeCount > 0 ? totalTime / timeCount : 0;
 
         // Conta leads (quem passou pelo step1)
-        const leads = metrics.funnelSteps['/register/step1/'].visitors.size ||
-            metrics.funnelSteps['/register/step1/'].pageviews;
+        const leads = metrics.funnelSteps['/register/step1/'].visitors.size;
 
         kpiContainer.innerHTML = `
       <div class="card kpi-card animate-fadeIn">
@@ -684,7 +736,7 @@
 
         FUNNEL_STEPS.forEach((step, index) => {
             const stepData = metrics.funnelSteps[step.path];
-            const visitors = stepData.visitors.size || stepData.pageviews;
+            const visitors = stepData.visitors.size; // Sempre usa sessões únicas
 
             // Calcula conversão em relação ao step anterior
             let conversionRate = 100;
@@ -758,7 +810,13 @@
         const container = document.getElementById('utm-sources');
         if (!container) return;
 
-        const sources = Object.entries(metrics.utmSources)
+        // Converte Sets para contagens
+        const sourcesWithCounts = Object.entries(metrics.utmSources).map(([source, sessions]) => [
+            source,
+            sessions.size || sessions // Suporta Set ou número (backward compat)
+        ]);
+
+        const sources = sourcesWithCounts
             .sort((a, b) => b[1] - a[1])
             .slice(0, 6);
 
@@ -882,11 +940,22 @@
         const container = document.getElementById('device-stats');
         if (!container) return;
 
-        const browsers = Object.entries(metrics.devices.browsers)
+        // Converte Sets para contagens
+        const browsersWithCounts = Object.entries(metrics.devices.browsers).map(([browser, sessions]) => [
+            browser,
+            sessions.size || sessions // Suporta Set ou número (backward compat)
+        ]);
+
+        const osWithCounts = Object.entries(metrics.devices.os).map(([osName, sessions]) => [
+            osName,
+            sessions.size || sessions
+        ]);
+
+        const browsers = browsersWithCounts
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5);
 
-        const os = Object.entries(metrics.devices.os)
+        const os = osWithCounts
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5);
 
@@ -1852,8 +1921,20 @@
         }
     }
 
-    // Auto-refresh a cada 60 segundos
-    setInterval(refreshDashboard, 60000);
+    // Auto-refresh a cada 120 segundos (otimizado para performance)
+    // Debounce para evitar múltiplos refreshes simultâneos
+    let lastRefreshTime = 0;
+    const MIN_REFRESH_INTERVAL = 5000; // 5 segundos mínimo entre refreshes
+
+    const debouncedRefresh = function () {
+        const now = Date.now();
+        if (now - lastRefreshTime > MIN_REFRESH_INTERVAL) {
+            lastRefreshTime = now;
+            refreshDashboard();
+        }
+    };
+
+    setInterval(debouncedRefresh, 120000);
 
     // Inicia processo
     tryInit();

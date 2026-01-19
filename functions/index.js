@@ -176,6 +176,9 @@ async function handleTransaction(payload) {
     // Se for PIX pago, salva evento de conversão
     if (payload.status === 'paid' && payload.method === 'pix') {
         await saveConversionEvent(cleanData);
+
+        // ✨ TRACKING: Registra checkout completion
+        await saveCheckoutCompletionTracking(cleanData);
     }
 
     // Atualiza usuário se tiver email
@@ -262,6 +265,57 @@ async function saveConversionEvent(transactionData) {
     // mas transactionData já está limpo.
     await db.collection('events').add(cleanUndefined(event));
     console.log('🎉 Conversão registrada:', transactionData.transaction_id);
+}
+
+/**
+ * Salva evento de checkout completion (para tracking)
+ * Integra com MadamesTracking backend
+ */
+async function saveCheckoutCompletionTracking(transactionData) {
+    const event = {
+        event_type: 'checkout',
+        id: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        timestamp: Date.now(),
+        datetime: new Date().toISOString(),
+
+        // Dados específicos do checkout
+        action: 'complete',
+        source: 'paywall',
+        price: (transactionData.amount || 0) / 100, // Converte de centavos para reais
+
+        // Dados da transação
+        transaction_id: transactionData.transaction_id,
+        payment_method: 'pix',
+
+        // Cliente
+        customer_email: transactionData.customer_email,
+        customer_name: transactionData.customer_name,
+
+        // UTMs
+        utms: {
+            utm_source: transactionData.utm_source,
+            utm_medium: transactionData.utm_medium,
+            utm_campaign: transactionData.utm_campaign,
+            utm_term: transactionData.utm_term,
+            utm_content: transactionData.utm_content
+        },
+
+        // Device info (do webhook)
+        device: {
+            platform: transactionData.platform || 'unknown',
+            ip: transactionData.ip
+        },
+
+        // Metadata
+        page: '/checkout',
+        referrer: null,
+
+        // Timestamp do servidor
+        server_timestamp: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.collection('events').add(cleanUndefined(event));
+    console.log('✅ Checkout completion tracking salvo:', transactionData.transaction_id);
 }
 
 /**

@@ -29,7 +29,7 @@
   --text-muted: #71717a;
 
   --glass-blur: 12px;
-  --transition: all 0.3s ease;
+  --transition: all 0.2s ease;
 }
 
 * {
@@ -614,7 +614,8 @@ body {
   height: 100%;
   background: linear-gradient(90deg, var(--primary-500), var(--primary-400));
   border-radius: 4px;
-  transition: width 0.5s ease;
+  transition: width 0.3s ease;
+  will-change: width;
 }
 
 /* ==================== */
@@ -1655,21 +1656,23 @@ body {
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(10px) translateZ(0);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateY(0) translateZ(0);
   }
 }
 
 .animate-pulse {
   animation: pulse 2s infinite;
+  will-change: opacity, transform;
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.5s ease;
+  animation: fadeIn 0.25s ease;
+  will-change: opacity, transform;
 }
 
 /* ==================== */

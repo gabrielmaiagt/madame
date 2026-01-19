@@ -11,6 +11,10 @@
   const SESSION_KEY = 'madames_session_id';
   const MAX_EVENTS = 10000; // Limite de eventos no localStorage
 
+  // Cache de eventos para prevenir duplicação
+  const sessionEventCache = new Set();
+  const CACHE_EXPIRY = 60000; // 1 minuto
+
   // Gera ou recupera ID da sessão
   function getSessionId() {
     let sessionId = sessionStorage.getItem(SESSION_KEY);
@@ -80,6 +84,9 @@
 
   // Salva evento (localStorage + Firestore)
   function saveEvent(event) {
+    // Previne salvar eventos null (já foram filtrados por deduplicação)
+    if (!event) return;
+
     try {
       // 1. Sempre salva no localStorage (fallback)
       let events = getStoredEvents();
@@ -129,8 +136,42 @@
     }
   }
 
-  // Cria evento base
+  // Cria evento base com deduplicação
   function createEvent(eventType, extraData = {}) {
+    // Sistema de deduplicação para prevenir eventos duplicados
+
+    // Para page_view: apenas 1 por path por time-window (30 minutos)
+    if (eventType === 'page_view') {
+      const timeWindow = Math.floor(Date.now() / (30 * 60 * 1000)); // Janela de 30 min
+      const pageKey = `page_view_${extraData.page || window.location.pathname}_${timeWindow}`;
+      if (sessionEventCache.has(pageKey)) {
+        console.log('⏭️ Page view duplicado ignorado (< 30min):', extraData.page || window.location.pathname);
+        return null;
+      }
+      sessionEventCache.add(pageKey);
+      // Limpa cache após 35 minutos para evitar memory leak
+      setTimeout(() => sessionEventCache.delete(pageKey), 35 * 60 * 1000);
+    }
+
+    // Para form_error: debounce de 5s por tipo de erro
+    if (eventType === 'form_error') {
+      const errorType = extraData.error_type || 'unknown';
+      const timeWindow = Math.floor(Date.now() / 5000); // Janela de 5 segundos
+      const errorKey = `form_error_${errorType}_${timeWindow}`;
+      if (sessionEventCache.has(errorKey)) {
+        console.log('⏭️ Erro duplicado ignorado:', errorType);
+        return null;
+      }
+      sessionEventCache.add(errorKey);
+      // Remove da cache após 10 segundos
+      setTimeout(() => sessionEventCache.delete(errorKey), 10000);
+    }
+
+    // Para device info: limita a 1 por sessão por tipo de evento
+    if (eventType === 'page_view' || eventType === 'cta_click') {
+      // Já é capturado em page_view, não precisa duplicar em cada evento
+    }
+
     const baseEvent = {
       id: 'evt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
       timestamp: Date.now(),
@@ -437,6 +478,75 @@
         profile_name: profileName
       });
       saveEvent(event);
+    },
+
+    // =====================
+    // DEBUG UTILITIES
+    // =====================
+
+    // Debug: Ver eventos filtrados por tipo
+    getEventsByType: function (eventType) {
+      return getStoredEvents().filter(e => e.event_type === eventType);
+    },
+
+    // Debug: Ver sessões únicas por página
+    getSessionsByPage: function () {
+      const events = getStoredEvents();
+      const result = {};
+
+      events.forEach(e => {
+        if (e.event_type === 'page_view') {
+          if (!result[e.page]) result[e.page] = new Set();
+          result[e.page].add(e.session_id);
+        }
+      });
+
+      Object.keys(result).forEach(page => {
+        result[page] = {
+          uniqueSessions: result[page].size,
+          sessions: Array.from(result[page])
+        };
+      });
+
+      return result;
+    },
+
+    // Debug: Resumo completo de tracking
+    getTrackingSummary: function () {
+      const events = getStoredEvents();
+      const summary = {
+        totalEvents: events.length,
+        eventTypes: {},
+        sessions: new Set(),
+        pages: {}
+      };
+
+      events.forEach(e => {
+        // Contagem por tipo
+        summary.eventTypes[e.event_type] = (summary.eventTypes[e.event_type] || 0) + 1;
+
+        // Sessões únicas
+        if (e.session_id) summary.sessions.add(e.session_id);
+
+        // Page views por página
+        if (e.event_type === 'page_view') {
+          if (!summary.pages[e.page]) {
+            summary.pages[e.page] = { pageviews: 0, uniqueSessions: new Set() };
+          }
+          summary.pages[e.page].pageviews++;
+          if (e.session_id) summary.pages[e.page].uniqueSessions.add(e.session_id);
+        }
+      });
+
+      summary.uniqueSessions = summary.sessions.size;
+      delete summary.sessions;
+
+      // Converte Sets para counts
+      Object.keys(summary.pages).forEach(page => {
+        summary.pages[page].uniqueSessions = summary.pages[page].uniqueSessions.size;
+      });
+
+      return summary;
     }
   };
 
@@ -444,10 +554,11 @@
   // AUTO-TRACKING
   // =====================
 
-  // Registra pageview automaticamente
-  document.addEventListener('DOMContentLoaded', function () {
-    window.MadamesTracking.trackPageView();
-  });
+  // AUTO-TRACKING REMOVIDO: Páginas já chamam trackPageView() manualmente
+  // para evitar duplicação. Se uma página não tiver tracking, adicione lá.
+  // document.addEventListener('DOMContentLoaded', function () {
+  //   window.MadamesTracking.trackPageView();
+  // });
 
   // Registra saída da página
   window.addEventListener('beforeunload', function () {
@@ -523,7 +634,10 @@
   });
 
   // 5. Monitor de Erros Globais (MutationObserver para Toasts/Alertas)
+  let lastErrorTime = 0;
+  let lastErrorText = '';
   const errorObserver = new MutationObserver(function (mutations) {
+    const now = Date.now();
     mutations.forEach(function (mutation) {
       if (mutation.addedNodes.length > 0) {
         mutation.addedNodes.forEach(function (node) {
@@ -534,12 +648,24 @@
               text.includes('não confere');
 
             if (isError) {
+              // Debounce: evita disparar o mesmo erro repetidamente em menos de 2 segundos
+              if (text === lastErrorText && (now - lastErrorTime < 2000)) return;
+
               let errorType = 'other';
               if (text.includes('obrigatório')) errorType = 'required_field';
               if (text.includes('não confere') || text.includes('diferentes')) errorType = 'password_mismatch';
               if (text.includes('curta')) errorType = 'password_short';
 
+              lastErrorText = text;
+              lastErrorTime = now;
               window.MadamesTracking.trackFormError(errorType, text.substring(0, 100));
+            }
+
+            // Detecção de visualização de Paywall (se aparecer um modal com preço ou "vip")
+            if (text.includes('r$ 19,90') || text.includes('acesso vip') || text.includes('premium')) {
+              if (node.id === 'paywall-modal' || node.classList.contains('fixed')) {
+                window.MadamesTracking.trackPaywall('view', 'modal_detect', 19.90);
+              }
             }
           }
         });
@@ -561,9 +687,21 @@
     }
   });
 
+  // Captura automática de nome e email (Scraping)
   document.addEventListener('blur', function (e) {
     if (e.target.id === 'bio') {
       window.MadamesTracking.trackBioFilled(e.target.value.length);
+    }
+
+    if (e.target.id === 'name' || e.target.id === 'email') {
+      const nameVal = document.getElementById('name')?.value || '';
+      const emailVal = document.getElementById('email')?.value || '';
+      if (nameVal || emailVal) {
+        window.MadamesTracking.saveUserData({
+          name: nameVal,
+          email: emailVal
+        });
+      }
     }
   }, true);
 
@@ -574,6 +712,19 @@
       const name = interest.textContent.trim();
       const isSelected = interest.classList.contains('bg-primary-500');
       window.MadamesTracking.trackInterest(name, !isSelected); // ! porque o clique vai alternar
+    }
+
+    // Captura de nome/email ao clicar em Continuar
+    const btn = e.target.closest('button');
+    if (btn && (btn.textContent.toLowerCase().includes('continuar') || btn.textContent.toLowerCase().includes('começar'))) {
+      const nameVal = document.getElementById('name')?.value || '';
+      const emailVal = document.getElementById('email')?.value || '';
+      if (nameVal || emailVal) {
+        window.MadamesTracking.saveUserData({
+          name: nameVal,
+          email: emailVal
+        });
+      }
     }
   });
 
