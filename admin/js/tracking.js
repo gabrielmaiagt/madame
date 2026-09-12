@@ -99,17 +99,32 @@
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
 
-      // 2. Tenta salvar no Firestore se disponível
-      if (window.MadamesFirestore && window.MadamesFirestore.isReady()) {
-        window.MadamesFirestore.saveEvent(event).catch(function (err) {
-          console.warn('Falha ao salvar no Firestore:', err);
-        });
-      }
+      // 2. Tenta salvar no Firestore (com retry — eventos disparados muito cedo,
+      // como page_view logo na carga da página, podem rodar antes do Firebase
+      // terminar de inicializar; sem isso o evento silenciosamente nunca ia pro
+      // banco, só ficava no localStorage)
+      trySaveToFirestore(event, 0);
 
       // Log para debug
       console.log('📊 Evento registrado:', event.event_type, event.page || event.cta_id);
     } catch (e) {
       console.error('Erro ao salvar evento:', e);
+    }
+  }
+
+  function trySaveToFirestore(event, attempt) {
+    if (window.MadamesFirestore && window.MadamesFirestore.isReady()) {
+      window.MadamesFirestore.saveEvent(event).catch(function (err) {
+        console.warn('Falha ao salvar no Firestore:', err);
+      });
+      return;
+    }
+    if (attempt < 15) {
+      // Tenta de novo em breve (até ~4.5s no total) — cobre o tempo de
+      // inicialização do Firebase sem atrasar o resto do tracking.
+      setTimeout(function () { trySaveToFirestore(event, attempt + 1); }, 300);
+    } else {
+      console.warn('⚠️ Firestore não ficou pronto a tempo, evento ficou só no localStorage:', event.event_type);
     }
   }
 
@@ -167,9 +182,20 @@
       setTimeout(() => sessionEventCache.delete(errorKey), 10000);
     }
 
-    // Para device info: limita a 1 por sessão por tipo de evento
-    if (eventType === 'page_view' || eventType === 'cta_click') {
-      // Já é capturado em page_view, não precisa duplicar em cada evento
+    // Para paywall/withdraw_popup/checkout: o detector automático (MutationObserver)
+    // re-varre o DOM a cada re-render — e modais com contador regressivo re-renderizam
+    // a cada segundo, disparando "abriu popup"/"viu paywall" de novo a cada tick.
+    // Sem isso, 1 pessoa olhando o paywall por 20s virava "20 visualizações".
+    if (eventType === 'paywall' || eventType === 'withdraw_popup' || eventType === 'checkout') {
+      const dedupWindowMs = 8000; // 8s: cobre os re-renders do contador sem juntar aberturas de verdade
+      const timeWindow = Math.floor(Date.now() / dedupWindowMs);
+      const dedupKey = `${eventType}_${extraData.action || ''}_${extraData.source || ''}_${timeWindow}`;
+      if (sessionEventCache.has(dedupKey)) {
+        console.log('⏭️ Evento duplicado ignorado (re-render):', eventType, extraData.action);
+        return null;
+      }
+      sessionEventCache.add(dedupKey);
+      setTimeout(() => sessionEventCache.delete(dedupKey), dedupWindowMs + 1000);
     }
 
     const baseEvent = {
@@ -200,6 +226,20 @@
 
       // Inicia timer para tempo na página
       this._pageStartTime = Date.now();
+    },
+
+    // Monta a query string de checkout a partir das UTMs persistidas (localStorage),
+    // não da URL atual — depois de navegar pelo funil, window.location.search já
+    // não tem mais os parâmetros originais do anúncio, então usar isso direto
+    // perdia a atribuição antes de chegar no checkout externo.
+    getCheckoutQueryString: function () {
+      const utms = getUtmData();
+      const params = new URLSearchParams(window.location.search);
+      Object.keys(utms).forEach(function (key) {
+        params.set(key, utms[key]);
+      });
+      const qs = params.toString();
+      return qs ? '?' + qs : '';
     },
 
     // Registra clique em CTA
@@ -427,7 +467,7 @@
       const event = createEvent('paywall', {
         action: action, // 'view', 'dismiss', 'click_checkout'
         source: source, // 'chat', 'match', 'recusa_tudo', 'premium_chat', 'gift_claim'
-        price: price || 19.90
+        price: price || 27.00
       });
       saveEvent(event);
     },
@@ -437,7 +477,7 @@
       const event = createEvent('checkout', {
         action: action, // 'init', 'complete', 'abandon'
         source: source,
-        price: price || 19.90
+        price: price || 27.00
       });
       saveEvent(event);
     },
@@ -476,6 +516,16 @@
       const event = createEvent('premium_match_action', {
         action: action, // 'start_chat', 'next_profile', 'view_content'
         profile_name: profileName
+      });
+      saveEvent(event);
+    },
+
+    // Registra passo da cadeia de upsell/downsell (vitalício, taxa de saque, IOF, etc)
+    trackUpsellStep: function (step, action, price) {
+      const event = createEvent('upsell_step', {
+        step: step, // 'vitalicio', 'saque', 'iof', 'manutencao'
+        action: action, // 'view_main','accept_main','decline_main','view_downsell','accept_downsell','decline_downsell'
+        price: price || null
       });
       saveEvent(event);
     },
@@ -566,6 +616,12 @@
   });
 
   // Auto-tracking de links e botões
+  // Desativado no /admin: essa página é o próprio painel de analytics, não uma
+  // etapa do funil, e os detectores abaixo (por texto genérico como "erro",
+  // "obrigatório" etc） disparavam falsos "form_error" só por renderizar o dashboard.
+  const isAdminPage = window.location.pathname.startsWith('/admin');
+
+  if (!isAdminPage) {
   document.addEventListener('click', function (e) {
     // 1. CTA Tracking (data-track-cta)
     const target = e.target.closest('[data-track-cta]');
@@ -582,18 +638,27 @@
       const text = btn.textContent.trim().toLowerCase();
       const svg = btn.querySelector('svg');
 
+      // Este detector genérico é um fallback pra páginas sem tracking específico.
+      // Páginas com tracking dedicado (discover-tracking.js, chat-tracking.js,
+      // pix-modal-tracking.js) marcam o botão com um data-attribute próprio depois
+      // de tratá-lo — se o clique já foi tratado especificamente, os checks abaixo
+      // pulam, senão o evento era disparado 2x (uma vez aqui com valor genérico/
+      // desatualizado, outra vez no tracker específico com o valor real).
+      const alreadyTracked = btn.dataset.trackingAdded || btn.dataset.saldoTrackingAdded ||
+        btn.dataset.pixTrackingAdded || btn.dataset.giftTrackingAdded;
+
       // Detecção de Swipe (Like/Heart)
-      if (text.includes('curtir') || (svg && btn.classList.contains('bg-primary-500'))) {
+      if (!alreadyTracked && (text.includes('curtir') || (svg && btn.classList.contains('bg-primary-500')))) {
         window.MadamesTracking.trackSwipe('like', 'auto', 'Profile');
       }
 
       // Detecção de Swipe (Dislike/X)
-      if (text === 'x' || (svg && btn.querySelector('path[d*="M18 6 6 18"]'))) {
+      if (!alreadyTracked && (text === 'x' || (svg && btn.querySelector('path[d*="M18 6 6 18"]')))) {
         window.MadamesTracking.trackSwipe('dislike', 'auto', 'Profile');
       }
 
       // Detecção de Popup de Saque (Saldo)
-      if (text.includes('saldo') || text.includes('r$')) {
+      if (!alreadyTracked && (text.includes('saldo') || text.includes('r$'))) {
         window.MadamesTracking.trackWithdrawPopup('open', 'header');
       }
 
@@ -604,13 +669,13 @@
       }
 
       // Botão de Solicitar Saque dentro do Modal
-      if (text.includes('solicitar saque')) {
+      if (!alreadyTracked && text.includes('solicitar saque')) {
         window.MadamesTracking.trackWithdrawPopup('submit_pix', 'modal');
       }
 
       // Detecção de Gift Claim (Resgatar Presente)
-      if (text.includes('resgatar') || text.includes('presente')) {
-        window.MadamesTracking.trackGiftClaim('auto', 50, 'chat');
+      if (!alreadyTracked && (text.includes('resgatar') || text.includes('presente'))) {
+        window.MadamesTracking.trackGiftClaim('auto', 150, 'chat');
       }
     }
 
@@ -662,9 +727,9 @@
             }
 
             // Detecção de visualização de Paywall (se aparecer um modal com preço ou "vip")
-            if (text.includes('r$ 19,90') || text.includes('acesso vip') || text.includes('premium')) {
+            if (text.includes('r$ 27') || text.includes('acesso vip') || text.includes('premium')) {
               if (node.id === 'paywall-modal' || node.classList.contains('fixed')) {
-                window.MadamesTracking.trackPaywall('view', 'modal_detect', 19.90);
+                window.MadamesTracking.trackPaywall('view', 'modal_detect', 27.00);
               }
             }
           }
@@ -727,6 +792,7 @@
       }
     }
   });
+  } // fim do if (!isAdminPage)
 
   // 8. Melhoria na detecção de fonte do Popup de Saque
   const originalTrackWithdrawPopup = window.MadamesTracking.trackWithdrawPopup;

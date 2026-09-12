@@ -29,7 +29,7 @@
         // Helper para detectar e track paywall por source
         function trackPaywallIfNeeded(source) {
             if (window.MadamesTracking) {
-                window.MadamesTracking.trackPaywall('view', source, 19.90);
+                window.MadamesTracking.trackPaywall('view', source, 27.00);
                 console.log('🎯 Paywall source tracked:', source);
             }
         }
@@ -111,8 +111,11 @@
         });
 
         // Tracking de abrir popup de saldo
-        const saldoBtn = document.querySelector('button:has(span:contains("Seu saldo"))') ||
-            document.querySelector('button:has(span:contains("R$"))');
+        // Nota: ":contains()" não é seletor CSS válido (é sintaxe jQuery) — usar isso
+        // em querySelector lançava SyntaxError e travava esse trecho inteiro.
+        const saldoBtn = Array.from(document.querySelectorAll('button')).find((btn) =>
+            btn.textContent.includes('Seu saldo') || btn.textContent.includes('R$')
+        );
         if (saldoBtn && !saldoBtn.dataset.saldoTrackingAdded) {
             saldoBtn.dataset.saldoTrackingAdded = 'true';
             saldoBtn.addEventListener('click', function () {

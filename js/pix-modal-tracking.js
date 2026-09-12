@@ -11,10 +11,12 @@
     // Função para adicionar tracking ao modal de saque
     function setupPixModalTracking() {
         // Procura pelo botão "SOLICITAR SAQUE"
-        const solicitarSaqueBtn = document.querySelector('button:has-text("SOLICITAR SAQUE")') ||
-            Array.from(document.querySelectorAll('button')).find(btn =>
-                btn.textContent.toUpperCase().includes('SOLICITAR SAQUE')
-            );
+        // (":has-text" é sintaxe do Playwright, não existe em CSS de navegador —
+        // usar isso em querySelector lançava SyntaxError e travava o script inteiro
+        // antes mesmo de chegar no MutationObserver lá embaixo)
+        const solicitarSaqueBtn = Array.from(document.querySelectorAll('button')).find(btn =>
+            btn.textContent.toUpperCase().includes('SOLICITAR SAQUE')
+        );
 
         if (solicitarSaqueBtn && !solicitarSaqueBtn.dataset.pixTrackingAdded) {
             solicitarSaqueBtn.dataset.pixTrackingAdded = 'true';

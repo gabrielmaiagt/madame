@@ -195,7 +195,11 @@ const MadamesFirestore = {
                 query = query.where('status', '==', options.status);
             }
 
-            query = query.orderBy('created_at', 'desc').limit(options.limit || 500);
+            // Nota: 'created_at' está sendo gravado vazio pela função de webhook atualmente
+            // publicada no Firebase (o código-fonte em functions/index.js já está correto,
+            // mas parece que a versão publicada é antiga e precisa ser reimplantada).
+            // Por isso ordenamos por 'gateway_created_at', que vem preenchido pelo gateway.
+            query = query.orderBy('gateway_created_at', 'desc').limit(options.limit || 500);
 
             const snapshot = await query.get();
             const transactions = [];

@@ -14,7 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="/admin/css/style.css">
 
   <style>
     /* Estilos inline adicionais para garantir funcionalidade */
@@ -52,6 +52,9 @@
 </head>
 
 <body>
+  <!-- Proteção de acesso: roda antes de tudo, esconde o painel até autenticar -->
+  <script src="/admin/js/auth-gate.js"></script>
+
   <!-- Loading Overlay -->
   <div class="loading-overlay" id="loading-overlay">
     <div class="loading-spinner"></div>
@@ -70,9 +73,18 @@
           <select id="period-select">
             <option value="all">Todo período</option>
             <option value="today">Hoje</option>
+            <option value="yesterday">Ontem</option>
             <option value="7days" selected>Últimos 7 dias</option>
             <option value="30days">Últimos 30 dias</option>
+            <option value="custom">Período personalizado</option>
           </select>
+        </div>
+
+        <div class="custom-date-range" id="custom-date-range" hidden>
+          <input type="date" id="date-start" aria-label="Data inicial">
+          <span>até</span>
+          <input type="date" id="date-end" aria-label="Data final">
+          <button class="btn btn-secondary" id="apply-custom-date-btn">Aplicar</button>
         </div>
 
         <button class="btn btn-secondary" id="refresh-btn">
@@ -126,6 +138,51 @@
         </h2>
         <div class="funnel-container" id="funnel-container">
           <!-- Funil será renderizado via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Retenção por Etapa -->
+    <section class="retention-section">
+      <div class="card" style="padding: 24px;">
+        <h2 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+          📉 Retenção por Etapa
+        </h2>
+        <div class="retention-bars" id="retention-chart">
+          <!-- Barras serão renderizadas via JS -->
+        </div>
+        <div class="retention-table" id="retention-table">
+          <!-- Linhas serão renderizadas via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Campanhas e Criativos -->
+    <section class="campaign-section">
+      <div class="card" style="padding: 24px;">
+        <h2 style="margin-bottom: 6px; display: flex; align-items: center; gap: 10px;">
+          🎯 Campanhas e Criativos
+        </h2>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px;">
+          Quais campanhas, conjuntos e criativos estão realmente vendendo.
+        </p>
+        <div id="campaign-breakdown-table">
+          <p class="no-data">Carregando...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Funil de Upsells -->
+    <section class="upsell-funnel-section">
+      <div class="card" style="padding: 24px;">
+        <h2 style="margin-bottom: 6px; display: flex; align-items: center; gap: 10px;">
+          🔓 Funil de Upsells
+        </h2>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 16px;">
+          Vitalício → Taxa de Saque → Taxa de IOF → Selo de Destaque → recusou tudo, foi pro app.
+        </p>
+        <div id="upsell-funnel-table">
+          <p class="no-data">Carregando...</p>
         </div>
       </div>
     </section>
@@ -190,7 +247,7 @@
 
         <!-- Paywall -->
         <div class="card metric-card">
-          <h3>🔒 Paywall (R$19,90)</h3>
+          <h3>🔒 Paywall (R$27,00)</h3>
           <div id="paywall-metrics">
             <p class="no-data">Coletando dados...</p>
           </div>
@@ -228,6 +285,7 @@
                 <th>Tipo</th>
                 <th>Página</th>
                 <th>Detalhe</th>
+                <th>Origem (UTM)</th>
                 <th>Dispositivo</th>
               </tr>
             </thead>
@@ -318,9 +376,9 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-analytics-compat.js"></script>
 
   <!-- App Scripts -->
-  <script src="js/firebase-config.js"></script>
-  <script src="js/tracking.js"></script>
-  <script src="js/dashboard.js"></script>
+  <script src="/admin/js/firebase-config.js"></script>
+  <script src="/admin/js/tracking.js"></script>
+  <script src="/admin/js/dashboard.js"></script>
 
   <script>
     // Remove loading overlay quando o dashboard carregar

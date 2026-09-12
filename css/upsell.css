@@ -1,0 +1,279 @@
+/* Madames Online - Estilo compartilhado das páginas de upsell/downsell */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #000;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 440px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 28px 20px 40px;
+}
+
+.logo {
+  width: 120px;
+  margin: 0 auto 18px;
+  display: block;
+}
+
+h1 {
+  text-align: center;
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.25;
+  margin: 0 0 10px;
+}
+
+h1 span {
+  background: linear-gradient(90deg, #fcd34d, #f59e0b, #fcd34d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.subtitle {
+  text-align: center;
+  color: #a1a1aa;
+  font-size: 0.95rem;
+  margin: 0 0 26px;
+  line-height: 1.5;
+}
+
+.price-card {
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.02));
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 18px;
+  padding: 22px;
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+.price-label {
+  font-size: 0.8rem;
+  color: #d1d5db;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.price-old {
+  font-size: 1.1rem;
+  color: #71717a;
+  text-decoration: line-through;
+  margin-bottom: 2px;
+}
+
+.price {
+  font-size: 2.6rem;
+  font-weight: 800;
+  background: linear-gradient(90deg, #fcd34d, #f59e0b, #fcd34d);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.price-note {
+  font-size: 0.8rem;
+  color: #9ca3af;
+}
+
+.benefits {
+  list-style: none;
+  margin: 0 0 26px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 0.95rem;
+  color: #e5e7eb;
+}
+
+.benefits li::before {
+  content: "✓";
+  flex-shrink: 0;
+  font-weight: 800;
+  color: #f59e0b;
+}
+
+.cta {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 18px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  color: #1a1200;
+  font-weight: 800;
+  font-size: 1.05rem;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.35);
+  transition: transform 0.15s ease;
+}
+
+.cta:active {
+  transform: scale(0.98);
+}
+
+.decline-link {
+  display: block;
+  text-align: center;
+  margin-top: 16px;
+  color: #71717a;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  padding: 8px;
+}
+
+.decline-link:hover {
+  color: #a1a1aa;
+}
+
+.trust {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #71717a;
+  margin-top: 14px;
+  line-height: 1.5;
+}
+
+.footer {
+  margin-top: auto;
+  padding-top: 30px;
+  text-align: center;
+  font-size: 0.7rem;
+  color: #52525b;
+}
+
+/* Downsell */
+.downsell-ribbon {
+  text-align: center;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 10px 14px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.discount-badge {
+  display: inline-block;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+
+/* Reason why (justificativa da taxa) */
+.reason-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 22px;
+}
+
+.reason-box .reason-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.reason-box p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #a1a1aa;
+  line-height: 1.6;
+}
+
+.reason-box strong {
+  color: #e5e7eb;
+}
+
+.downsell-reason {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  line-height: 1.5;
+  margin: -10px 0 20px;
+  padding: 0 6px;
+}
+
+.downsell-reason strong {
+  color: #fcd34d;
+}
+
+.selection-line {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 999px;
+  padding: 7px 14px;
+  margin: 0 auto 16px;
+  display: table;
+}
+
+.scarcity-note {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #fca5a5;
+  font-weight: 600;
+  margin-top: 14px;
+  line-height: 1.5;
+}
+
+.guarantee-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  font-size: 0.85rem;
+  color: #86efac;
+  font-weight: 600;
+  text-align: center;
+}
+
+.guarantee-badge::before {
+  content: "✓";
+  font-weight: 800;
+}

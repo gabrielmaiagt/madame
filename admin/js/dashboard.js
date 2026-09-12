@@ -43,25 +43,66 @@
         }
     }
 
-    function filterEventsByPeriod(events, period) {
+    // Fuso de Brasília é sempre UTC-3 (sem horário de verão desde 2019).
+    // "Hoje"/"ontem" precisam ser dia-calendário nesse fuso, não "últimas 24h" —
+    // senão o número não bate com o que a Utmify (ou qualquer painel de ads) mostra.
+    const BRT_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+    function startOfBRTDay(ms) {
+        const shifted = new Date(ms - BRT_OFFSET_MS);
+        const y = shifted.getUTCFullYear(), m = shifted.getUTCMonth(), d = shifted.getUTCDate();
+        return Date.UTC(y, m, d) + BRT_OFFSET_MS;
+    }
+
+    // Retorna {startMs, endMs} (endMs exclusivo) para o período escolhido.
+    // customStart/customEnd são strings "YYYY-MM-DD" (inputs type=date), usadas só quando period === 'custom'.
+    function getPeriodBoundaries(period, customStart, customEnd) {
         const now = Date.now();
-        let cutoff;
+        const todayStart = startOfBRTDay(now);
+        const DAY = 24 * 60 * 60 * 1000;
 
         switch (period) {
             case 'today':
-                cutoff = now - (24 * 60 * 60 * 1000);
-                break;
+                return { startMs: todayStart, endMs: now };
+            case 'yesterday':
+                return { startMs: todayStart - DAY, endMs: todayStart };
             case '7days':
-                cutoff = now - (7 * 24 * 60 * 60 * 1000);
-                break;
+                return { startMs: todayStart - 6 * DAY, endMs: now };
             case '30days':
-                cutoff = now - (30 * 24 * 60 * 60 * 1000);
-                break;
-            default:
-                cutoff = 0;
+                return { startMs: todayStart - 29 * DAY, endMs: now };
+            case 'custom':
+                if (customStart) {
+                    const [sy, sm, sd] = customStart.split('-').map(Number);
+                    const startMs = Date.UTC(sy, sm - 1, sd) + BRT_OFFSET_MS;
+                    let endMs = now;
+                    if (customEnd) {
+                        const [ey, em, ed] = customEnd.split('-').map(Number);
+                        endMs = Date.UTC(ey, em - 1, ed) + BRT_OFFSET_MS + DAY; // inclui o dia final inteiro
+                    }
+                    return { startMs, endMs };
+                }
+                return { startMs: 0, endMs: now };
+            default: // 'all'
+                return { startMs: 0, endMs: now };
         }
+    }
 
-        return events.filter(e => e.timestamp >= cutoff);
+    function filterEventsByPeriod(events, period, customStart, customEnd) {
+        const { startMs, endMs } = getPeriodBoundaries(period, customStart, customEnd);
+        return events.filter(e => e.timestamp >= startMs && e.timestamp <= endMs);
+    }
+
+    // Mesma lógica de boundaries, mas pra dados cujo timestamp vem como string ISO
+    // (gateway_created_at das transações/abandonos, que não usam Date.now()).
+    function filterByPeriodISO(items, dateField, period, customStart, customEnd) {
+        const { startMs, endMs } = getPeriodBoundaries(period, customStart, customEnd);
+        if (period === 'all') return items;
+        return items.filter(item => {
+            const raw = item[dateField];
+            if (!raw) return false;
+            const ms = new Date(raw).getTime();
+            return ms >= startMs && ms <= endMs;
+        });
     }
 
     function formatNumber(num) {
@@ -132,8 +173,11 @@
 
         // Processa eventos
         events.forEach(event => {
-            // Sessões únicas
-            if (event.session_id) {
+            // Sessões únicas: só conta quem teve pelo menos um page_view — mesma
+            // definição de "visitante" usada no funil e em Campanhas/Criativos.
+            // Antes contava qualquer sessão com QUALQUER evento (até um clique
+            // isolado), o que fazia esse número não bater com o resto do painel.
+            if (event.session_id && event.event_type === 'page_view') {
                 metrics.uniqueSessions.add(event.session_id);
             }
 
@@ -609,7 +653,7 @@
                     }
                     if (event.action === 'complete') {
                         specific.checkout.completed++;
-                        const revenue = event.price || 19.90;
+                        const revenue = event.price || 27.00;
                         specific.checkout.totalRevenue += revenue;
 
                         // 🎯 Associa conversão ao source do paywall
@@ -658,6 +702,241 @@
             : 0;
 
         return specific;
+    }
+
+    // =====================
+    // Funil de Upsells (vitalício, taxa de saque, IOF, manutenção...)
+    // =====================
+
+    const UPSELL_STEPS = [
+        { key: 'backredirect', name: 'Backredirect (recuperação)', mainPrice: 14.90 },
+        { key: 'backredirect2', name: 'Backredirect 2 (última chance)', mainPrice: 9.90 },
+        { key: 'vitalicio', name: 'Vitalício', mainPrice: 14.70, downsellPrice: 7.35 },
+        { key: 'saque', name: 'Taxa de Saque', mainPrice: 19.90, downsellPrice: 9.95 },
+        { key: 'iof', name: 'Taxa de IOF', mainPrice: 22.00, downsellPrice: 11.00 },
+        { key: 'selo', name: 'Selo de Destaque', mainPrice: 24.90, downsellPrice: 12.45 }
+    ];
+
+    // Mapa preço (em reais, com 2 casas) -> etapa/nível, usado pra cruzar transações
+    // pagas de verdade (gravadas pelo webhook) com o degrau do funil de upsell.
+    // Funciona porque cada oferta/downsell tem um preço único no funil hoje;
+    // se dois degraus passarem a ter o mesmo preço, esse cruzamento precisa mudar.
+    const PRICE_TO_UPSELL_STEP = {};
+    UPSELL_STEPS.forEach(s => {
+        PRICE_TO_UPSELL_STEP[s.mainPrice.toFixed(2)] = { key: s.key, tier: 'main' };
+        if (s.downsellPrice) {
+            PRICE_TO_UPSELL_STEP[s.downsellPrice.toFixed(2)] = { key: s.key, tier: 'downsell' };
+        }
+    });
+
+    function calculateUpsellFunnel(events, transactionsInPeriod) {
+        const byStep = {};
+        UPSELL_STEPS.forEach(s => {
+            byStep[s.key] = {
+                name: s.name,
+                views: new Set(),
+                acceptMain: 0,
+                declineMain: 0,
+                viewDownsell: 0,
+                acceptDownsell: 0,
+                declineDownsell: 0,
+                revenue: 0,
+                confirmedMain: 0,
+                confirmedDownsell: 0,
+                confirmedRevenue: 0
+            };
+        });
+
+        events.forEach(event => {
+            if (event.event_type !== 'upsell_step') return;
+            const bucket = byStep[event.step];
+            if (!bucket) return;
+
+            switch (event.action) {
+                case 'view_main':
+                    if (event.session_id) bucket.views.add(event.session_id);
+                    break;
+                case 'accept_main':
+                    bucket.acceptMain++;
+                    bucket.revenue += event.price || 0;
+                    break;
+                case 'decline_main':
+                    bucket.declineMain++;
+                    break;
+                case 'view_downsell':
+                    bucket.viewDownsell++;
+                    break;
+                case 'accept_downsell':
+                    bucket.acceptDownsell++;
+                    bucket.revenue += event.price || 0;
+                    break;
+                case 'decline_downsell':
+                    bucket.declineDownsell++;
+                    break;
+            }
+        });
+
+        // Cruza com transações realmente pagas (webhook do gateway) pelo valor cobrado
+        (transactionsInPeriod || []).forEach(tx => {
+            if (tx.gateway_status !== 'paid') return;
+            const amountReais = ((tx.amount || 0) / 100).toFixed(2);
+            const match = PRICE_TO_UPSELL_STEP[amountReais];
+            if (!match) return;
+            const bucket = byStep[match.key];
+            if (!bucket) return;
+            if (match.tier === 'main') bucket.confirmedMain++;
+            else bucket.confirmedDownsell++;
+            bucket.confirmedRevenue += parseFloat(amountReais);
+        });
+
+        return UPSELL_STEPS.map(s => {
+            const b = byStep[s.key];
+            const views = b.views.size;
+            const totalAccepted = b.acceptMain + b.acceptDownsell;
+            const totalConfirmed = b.confirmedMain + b.confirmedDownsell;
+            return {
+                key: s.key,
+                name: b.name,
+                views: views,
+                acceptMain: b.acceptMain,
+                declineMain: b.declineMain,
+                viewDownsell: b.viewDownsell,
+                acceptDownsell: b.acceptDownsell,
+                declineDownsell: b.declineDownsell,
+                totalAccepted: totalAccepted,
+                conversionRate: views > 0 ? (totalAccepted / views) * 100 : 0,
+                revenue: b.revenue,
+                totalConfirmed: totalConfirmed,
+                confirmedRevenue: b.confirmedRevenue
+            };
+        });
+    }
+
+    // =====================
+    // Análise por Campanha / Criativo
+    // =====================
+
+    // Convenção de UTM usada nas campanhas atuais (padrão Meta Ads):
+    //   utm_source   = plataforma (ex: "FB")
+    //   utm_campaign = "Nome da campanha|id"
+    //   utm_medium   = "Nome do conjunto de anúncios (adset)|id"
+    //   utm_content  = "Nome do anúncio/criativo|id"
+    //   utm_term     = posicionamento (ex: "Facebook_Mobile_Reels")
+    function utmGroupKey(utms) {
+        if (!utms || !utms.utm_source) return 'direct';
+        return [utms.utm_source, utms.utm_campaign || '', utms.utm_content || ''].join('||');
+    }
+
+    function stripId(value) {
+        if (!value) return null;
+        return value.split('|')[0].trim();
+    }
+
+    function calculateCampaignBreakdown(events, transactionsInPeriod, allUsers) {
+        // Mapa de e-mail -> utms, para atribuir vendas que não têm UTM na própria
+        // transação (hoje o gateway externo não devolve UTM nenhuma pra nós —
+        // então cruzamos pelo e-mail com o lead que se cadastrou no /register/step1).
+        const emailToUtms = {};
+        (allUsers || []).forEach(u => {
+            if (u.email && u.utms && u.utms.utm_source) {
+                emailToUtms[u.email.toLowerCase().trim()] = u.utms;
+            }
+        });
+
+        const groups = {};
+
+        function ensureGroup(key, utms) {
+            if (!groups[key]) {
+                groups[key] = {
+                    key: key,
+                    source: (utms && utms.utm_source) || 'Direto/Orgânico',
+                    campaign: (utms && stripId(utms.utm_campaign)) || '-',
+                    adset: (utms && stripId(utms.utm_medium)) || '-',
+                    creative: (utms && stripId(utms.utm_content)) || '-',
+                    term: (utms && utms.utm_term) || '-',
+                    visitors: new Set(),
+                    leads: new Set(),
+                    checkouts: new Set(),
+                    sales: 0,
+                    revenue: 0,
+                    attributedByEmail: 0
+                };
+            }
+            return groups[key];
+        }
+
+        // Visitantes, leads e checkouts vêm dos eventos client-side (já carregam .utms)
+        events.forEach(event => {
+            if (!event.session_id) return;
+            const key = utmGroupKey(event.utms);
+            const group = ensureGroup(key, event.utms);
+
+            if (event.event_type === 'page_view') {
+                group.visitors.add(event.session_id);
+                if (event.page && normalizePath(event.page).includes('/register/step1')) {
+                    group.leads.add(event.session_id);
+                }
+            }
+            if (event.event_type === 'checkout' && (event.action === 'init' || event.action === 'initiate')) {
+                group.checkouts.add(event.session_id);
+            }
+        });
+
+        // Vendas vêm das transações reais (fonte de verdade de receita)
+        (transactionsInPeriod || []).forEach(tx => {
+            if (tx.gateway_status !== 'paid') return;
+
+            let utms = null;
+            let attributedByEmail = false;
+
+            if (tx.utm_source) {
+                utms = {
+                    utm_source: tx.utm_source,
+                    utm_campaign: tx.utm_campaign,
+                    utm_medium: tx.utm_medium,
+                    utm_content: tx.utm_content,
+                    utm_term: tx.utm_term
+                };
+            } else {
+                const email = (tx.customer_email || '').toLowerCase().trim();
+                if (email && emailToUtms[email]) {
+                    utms = emailToUtms[email];
+                    attributedByEmail = true;
+                }
+            }
+
+            const key = utmGroupKey(utms);
+            const group = ensureGroup(key, utms);
+            group.sales++;
+            group.revenue += (tx.amount || 0) / 100; // amount vem em centavos
+            if (attributedByEmail) group.attributedByEmail++;
+        });
+
+        const rows = Object.values(groups).map(g => {
+            const visitors = g.visitors.size;
+            const leads = g.leads.size;
+            const checkouts = g.checkouts.size;
+            return {
+                source: g.source,
+                campaign: g.campaign,
+                adset: g.adset,
+                creative: g.creative,
+                term: g.term,
+                visitors: visitors,
+                leads: leads,
+                checkouts: checkouts,
+                sales: g.sales,
+                revenue: g.revenue,
+                avgTicket: g.sales > 0 ? g.revenue / g.sales : 0,
+                conversionRate: visitors > 0 ? (g.sales / visitors) * 100 : 0,
+                attributedByEmail: g.attributedByEmail
+            };
+        });
+
+        // Ordena por receita (o que mais vende primeiro)
+        rows.sort((a, b) => b.revenue - a.revenue || b.visitors - a.visitors);
+
+        return rows;
     }
 
     // =====================
@@ -806,6 +1085,181 @@
         funnelContainer.innerHTML = html;
     }
 
+    function renderRetentionByStep(metrics) {
+        const chartContainer = document.getElementById('retention-chart');
+        const tableContainer = document.getElementById('retention-table');
+        if (!chartContainer || !tableContainer) return;
+
+        const stepsData = FUNNEL_STEPS.map(step => ({
+            name: step.name,
+            visitors: metrics.funnelSteps[step.path].visitors.size
+        }));
+
+        const firstVisitors = stepsData.length ? stepsData[0].visitors : 0;
+
+        if (!firstVisitors) {
+            chartContainer.innerHTML = '<p class="no-data">Sem dados suficientes ainda</p>';
+            tableContainer.innerHTML = '';
+            return;
+        }
+
+        // Calcula retenção etapa-a-etapa e cumulativa, e identifica o maior gargalo
+        let previousVisitors = null;
+        let worstIndex = -1;
+        let worstDropRate = -Infinity;
+
+        const rows = stepsData.map((s, i) => {
+            const cumulativePct = (s.visitors / firstVisitors) * 100;
+            let stepPct = 100;
+            let lost = 0;
+
+            if (previousVisitors !== null) {
+                stepPct = previousVisitors > 0 ? (s.visitors / previousVisitors) * 100 : 0;
+                lost = previousVisitors - s.visitors;
+
+                const dropRate = 100 - stepPct;
+                if (dropRate > worstDropRate) {
+                    worstDropRate = dropRate;
+                    worstIndex = i;
+                }
+            }
+
+            previousVisitors = s.visitors;
+            return { name: s.name, visitors: s.visitors, cumulativePct: cumulativePct, stepPct: stepPct, lost: lost };
+        });
+
+        const maxBarHeight = 140;
+
+        chartContainer.innerHTML = rows.map((r, i) => `
+      <div class="retention-bar-col">
+        <div class="retention-bar-pct">${r.cumulativePct.toFixed(1)}%</div>
+        <div class="retention-bar ${i === worstIndex ? 'worst' : ''}" style="height: ${Math.max(6, (r.cumulativePct / 100) * maxBarHeight)}px"></div>
+        <div class="retention-bar-label" title="${r.name}">${r.name}</div>
+      </div>
+    `).join('');
+
+        tableContainer.innerHTML = rows.map((r, i) => `
+      <div class="retention-row">
+        <div class="retention-row-name ${i === worstIndex ? 'worst' : ''}">${r.name}</div>
+        <div class="retention-row-pct">${r.stepPct.toFixed(0)}%</div>
+        <div class="retention-row-bar-container">
+          <div class="retention-row-bar ${i === worstIndex ? 'worst' : ''}" style="width: ${Math.max(2, r.stepPct)}%"></div>
+        </div>
+        <div class="retention-row-meta">
+          <strong>${formatNumber(r.visitors)}</strong> (${r.cumulativePct.toFixed(0)}%)
+          ${i > 0 ? `<span class="${r.lost > 0 ? 'loss-negative' : 'loss-positive'}">${r.lost > 0 ? '-' : '+'}${formatNumber(Math.abs(r.lost))}</span>` : ''}
+        </div>
+      </div>
+    `).join('');
+    }
+
+    function renderUpsellFunnel(rows) {
+        const container = document.getElementById('upsell-funnel-table');
+        if (!container) return;
+
+        const fmtMoney = v => 'R$ ' + v.toFixed(2).replace('.', ',');
+        const totalRevenue = rows.reduce((sum, r) => sum + r.revenue, 0);
+        const totalConfirmedRevenue = rows.reduce((sum, r) => sum + r.confirmedRevenue, 0);
+
+        const html = `
+            <div class="campaign-table-scroll">
+                <table class="campaign-table">
+                    <thead>
+                        <tr>
+                            <th>Oferta</th>
+                            <th>Visualizações</th>
+                            <th>Aceitou (principal)</th>
+                            <th>Recusou</th>
+                            <th>Viu Downsell</th>
+                            <th>Aceitou Downsell</th>
+                            <th>Foi pro próximo</th>
+                            <th>Conv. total</th>
+                            <th>Cliques em "aceitar"</th>
+                            <th>Vendas confirmadas</th>
+                            <th>Receita confirmada</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(r => `
+                            <tr>
+                                <td>${r.name}</td>
+                                <td>${formatNumber(r.views)}</td>
+                                <td>${formatNumber(r.acceptMain)}</td>
+                                <td>${formatNumber(r.declineMain)}</td>
+                                <td>${formatNumber(r.viewDownsell)}</td>
+                                <td>${formatNumber(r.acceptDownsell)}</td>
+                                <td>${formatNumber(r.declineDownsell)}</td>
+                                <td>${r.conversionRate.toFixed(1)}%</td>
+                                <td>${fmtMoney(r.revenue)}</td>
+                                <td>${formatNumber(r.totalConfirmed)}</td>
+                                <td><strong>${fmtMoney(r.confirmedRevenue)}</strong></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <p class="campaign-table-note">"Cliques em aceitar" é quanto a pessoa clicou pra pagar (nem sempre conclui no gateway). "Vendas confirmadas" e "Receita confirmada" vêm do cruzamento com a coleção de transações pagas (webhook), casando pelo valor cobrado (${UPSELL_STEPS.map(s => fmtMoney(s.mainPrice) + (s.downsellPrice ? '/' + fmtMoney(s.downsellPrice) : '')).join(', ')}). Receita confirmada total no período: <strong>${fmtMoney(totalConfirmedRevenue)}</strong> (vs. ${fmtMoney(totalRevenue)} em cliques).</p>
+        `;
+
+        container.innerHTML = html;
+    }
+
+    function renderCampaignBreakdown(rows) {
+        const container = document.getElementById('campaign-breakdown-table');
+        if (!container) return;
+
+        if (!rows || rows.length === 0) {
+            container.innerHTML = '<p class="no-data">Sem dados suficientes ainda</p>';
+            return;
+        }
+
+        const fmtMoney = v => 'R$ ' + v.toFixed(2).replace('.', ',');
+
+        const bestRevenue = rows[0] ? rows[0].revenue : 0;
+
+        const html = `
+            <div class="campaign-table-scroll">
+                <table class="campaign-table">
+                    <thead>
+                        <tr>
+                            <th>Origem</th>
+                            <th>Campanha</th>
+                            <th>Conjunto</th>
+                            <th>Criativo</th>
+                            <th>Visitantes</th>
+                            <th>Leads</th>
+                            <th>Checkouts</th>
+                            <th>Vendas</th>
+                            <th>Receita</th>
+                            <th>Conv.</th>
+                            <th>Ticket médio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rows.map(r => `
+                            <tr class="${r.revenue > 0 && r.revenue === bestRevenue ? 'best-row' : ''}">
+                                <td>${r.source}</td>
+                                <td title="${r.campaign}">${r.campaign.length > 24 ? r.campaign.substring(0, 24) + '…' : r.campaign}</td>
+                                <td title="${r.adset}">${r.adset.length > 20 ? r.adset.substring(0, 20) + '…' : r.adset}</td>
+                                <td title="${r.creative}">${r.creative.length > 24 ? r.creative.substring(0, 24) + '…' : r.creative}</td>
+                                <td>${formatNumber(r.visitors)}</td>
+                                <td>${formatNumber(r.leads)}</td>
+                                <td>${formatNumber(r.checkouts)}</td>
+                                <td><strong>${formatNumber(r.sales)}</strong></td>
+                                <td><strong>${fmtMoney(r.revenue)}</strong></td>
+                                <td>${r.conversionRate.toFixed(1)}%</td>
+                                <td>${r.sales > 0 ? fmtMoney(r.avgTicket) : '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <p class="campaign-table-note">Vendas sem UTM própria na transação são atribuídas pelo e-mail do lead que se cadastrou (o gateway externo ainda não devolve UTM na venda).</p>
+        `;
+
+        container.innerHTML = html;
+    }
+
     function renderUTMSources(metrics) {
         const container = document.getElementById('utm-sources');
         if (!container) return;
@@ -894,6 +1348,25 @@
         container.innerHTML = html;
     }
 
+    // Formata a UTM de um evento pra exibição compacta na tabela de eventos recentes.
+    // Usa a mesma convenção da tabela de Campanhas (utm_campaign/utm_content vêm
+    // como "Nome|id" — stripId tira o "|id" pra ficar legível).
+    function formatEventUtm(utms) {
+        if (!utms || !utms.utm_source) return '<span class="utm-direct">Direto</span>';
+        const parts = [utms.utm_source];
+        const campaign = stripId(utms.utm_campaign);
+        const content = stripId(utms.utm_content);
+        if (campaign) parts.push(campaign);
+        if (content) parts.push(content);
+        return `<span class="utm-tag" title="${[
+            utms.utm_source ? 'source: ' + utms.utm_source : '',
+            utms.utm_medium ? 'medium: ' + utms.utm_medium : '',
+            utms.utm_campaign ? 'campaign: ' + utms.utm_campaign : '',
+            utms.utm_content ? 'content: ' + utms.utm_content : '',
+            utms.utm_term ? 'term: ' + utms.utm_term : ''
+        ].filter(Boolean).join(' | ')}">${parts.join(' / ')}</span>`;
+    }
+
     function renderRecentEvents(metrics) {
         const container = document.getElementById('events-table-body');
         if (!container) return;
@@ -901,7 +1374,7 @@
         if (metrics.recentEvents.length === 0) {
             container.innerHTML = `
         <tr>
-          <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+          <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-secondary);">
             Nenhum evento registrado ainda
           </td>
         </tr>
@@ -921,6 +1394,7 @@
             const detail = event.cta_text || event.cta_id ||
                 event.swipe_action || event.conversion_type || '-';
             const device = event.device ? `${event.device.browser} / ${event.device.os}` : '-';
+            const utm = formatEventUtm(event.utms);
 
             html += `
         <tr>
@@ -928,6 +1402,7 @@
           <td><span class="event-type-badge ${eventType}">${eventType}</span></td>
           <td>${page}</td>
           <td>${detail}</td>
+          <td>${utm}</td>
           <td>${device}</td>
         </tr>
       `;
@@ -1371,11 +1846,18 @@
         container.innerHTML = html;
     }
 
-    function renderCheckoutMetrics(specific) {
+    // completed/revenue vêm da coleção real de transações (fonte de verdade) —
+    // o evento client-side "checkout complete" nunca dispara de verdade, porque
+    // o pagamento acontece num checkout externo e o navegador não volta pra avisar.
+    function renderCheckoutMetrics(specific, transactionsInPeriod) {
         const container = document.getElementById('checkout-metrics');
         if (!container) return;
 
         const ck = specific.checkout;
+        const paid = (transactionsInPeriod || []).filter(t => t.gateway_status === 'paid');
+        const completed = paid.length;
+        const totalRevenue = paid.reduce((sum, t) => sum + (t.amount || 0), 0) / 100;
+        const conversionRate = ck.initiated > 0 ? ((completed / ck.initiated) * 100).toFixed(1) : '0.0';
 
         const html = `
             <div class="checkout-stats">
@@ -1384,7 +1866,7 @@
                     <span class="checkout-label">Iniciou</span>
                 </div>
                 <div class="checkout-stat success">
-                    <span class="checkout-value">${formatNumber(ck.completed)}</span>
+                    <span class="checkout-value">${formatNumber(completed)}</span>
                     <span class="checkout-label">Concluiu</span>
                 </div>
                 <div class="checkout-stat danger">
@@ -1393,10 +1875,10 @@
                 </div>
             </div>
             <div class="checkout-rate">
-                Taxa: <strong>${ck.conversionRate}%</strong>
+                Taxa: <strong>${conversionRate}%</strong>
             </div>
             <div class="checkout-revenue">
-                💵 Receita: <strong>R$ ${ck.totalRevenue.toFixed(2).replace('.', ',')}</strong>
+                💵 Receita: <strong>R$ ${totalRevenue.toFixed(2).replace('.', ',')}</strong>
             </div>
         `;
 
@@ -1436,9 +1918,23 @@
     // Inicialização
     // =====================
 
+    // Busca todos os leads (coleção users) pra usar como tabela de atribuição
+    // e-mail -> utms. É só uma tabela de lookup, não uma métrica period-bound.
+    async function fetchAllUsersForAttribution() {
+        if (typeof db === 'undefined' || !db) return [];
+        const snapshot = await db.collection('users').limit(3000).get();
+        const users = [];
+        snapshot.forEach(doc => users.push({ id: doc.id, ...doc.data() }));
+        return users;
+    }
+
     async function refreshDashboard() {
         const periodSelect = document.getElementById('period-select');
         const period = periodSelect ? periodSelect.value : 'all';
+        const customStartInput = document.getElementById('date-start');
+        const customEndInput = document.getElementById('date-end');
+        const customStart = customStartInput ? customStartInput.value : null;
+        const customEnd = customEndInput ? customEndInput.value : null;
         const loadingOverlay = document.getElementById('loading-overlay');
 
         // Mostra loading se for recarga manual
@@ -1449,21 +1945,15 @@
         try {
             console.log('🔄 Iniciando atualização do dashboard...');
 
+            const { startMs } = getPeriodBoundaries(period, customStart, customEnd);
+
             // 1. Busca eventos do Firestore (Fonte da verdade)
             let events = [];
 
             if (window.MadamesFirestore && window.MadamesFirestore.isReady()) {
-                // Calcula data de início baseada no filtro
-                const now = Date.now();
-                let startDate = 0;
-
-                if (period === 'today') startDate = now - (24 * 60 * 60 * 1000);
-                if (period === '7days') startDate = now - (7 * 24 * 60 * 60 * 1000);
-                if (period === '30days') startDate = now - (30 * 24 * 60 * 60 * 1000);
-
                 events = await window.MadamesFirestore.getEvents({
                     limit: 5000,
-                    startDate: startDate > 0 ? startDate : null
+                    startDate: startMs > 0 ? startMs : null
                 });
 
                 console.log(`📊 ${events.length} eventos carregados do Firestore`);
@@ -1472,23 +1962,51 @@
                 events = getStoredEvents();
             }
 
-            // 2. Filtra localmente se necessário (caso o filtro do Firestore não pegue tudo ou para localStorage)
+            // 2. Filtra localmente pelo período exato (início E fim — importante pra "ontem"/personalizado)
             if (period !== 'all') {
-                events = filterEventsByPeriod(events, period);
+                events = filterEventsByPeriod(events, period, customStart, customEnd);
+            }
+
+            // 2b. Busca transações e leads reais, pra receita/vendas confiáveis e pra
+            // análise por campanha/criativo (não depende do evento client-side de "checkout completo",
+            // que nunca dispara porque o pagamento acontece fora do site)
+            let transactionsInPeriod = [];
+            let allUsersForAttribution = [];
+
+            if (window.MadamesFirestore && window.MadamesFirestore.isReady()) {
+                try {
+                    const allTransactions = await window.MadamesFirestore.getTransactions({ limit: 3000 });
+                    transactionsInPeriod = period === 'all'
+                        ? allTransactions
+                        : filterByPeriodISO(allTransactions, 'gateway_created_at', period, customStart, customEnd);
+                } catch (e) {
+                    console.error('Erro ao buscar transações para análise:', e);
+                }
+
+                try {
+                    allUsersForAttribution = await fetchAllUsersForAttribution();
+                } catch (e) {
+                    console.error('Erro ao buscar leads para atribuição:', e);
+                }
             }
 
             // 3. Calcula métricas
             const metrics = calculateMetrics(events);
             const specificMetrics = calculateSpecificMetrics(events);
             const advancedMetrics = calculateBottleneckAndAdvanced(events, metrics);
+            const campaignBreakdown = calculateCampaignBreakdown(events, transactionsInPeriod, allUsersForAttribution);
+            const upsellFunnel = calculateUpsellFunnel(events, transactionsInPeriod);
 
             // 4. Renderiza métricas básicas
             renderKPIs(metrics);
             renderFunnel(metrics);
+            renderRetentionByStep(metrics);
             renderUTMSources(metrics);
             renderCTAClicks(metrics);
             renderRecentEvents(metrics);
             renderDeviceStats(metrics);
+            renderCampaignBreakdown(campaignBreakdown);
+            renderUpsellFunnel(upsellFunnel);
 
             // 5. Renderiza gargalo e métricas avançadas
             renderBottleneckAlert(advancedMetrics);
@@ -1499,7 +2017,7 @@
             renderSwipeMetrics(specificMetrics);
             renderWithdrawMetrics(specificMetrics);
             renderPaywallMetrics(specificMetrics);
-            renderCheckoutMetrics(specificMetrics);
+            renderCheckoutMetrics(specificMetrics, transactionsInPeriod);
             renderChatMetrics(specificMetrics);
 
             // 7. Atualiza contador de eventos
@@ -1591,7 +2109,7 @@
         // Usa o db diretamente se disponível
         if (typeof db !== 'undefined' && db) {
             const snapshot = await db.collection('cart_abandons')
-                .orderBy('created_at', 'desc')
+                .orderBy('gateway_created_at', 'desc')
                 .limit(20)
                 .get();
             const results = [];
@@ -1692,9 +2210,18 @@
                 <span class="abandon-label">abandonos</span>
             </div>
             <div class="abandon-list">
-                ${abandons.slice(0, 5).map(a => `
+                ${abandons.slice(0, 5).map(a => {
+                    const time = a.gateway_created_at ? formatDateTime(new Date(a.gateway_created_at).getTime()) : '-';
+                    const offer = a.offer_title || 'oferta desconhecida';
+                    const email = a.customer_email || 'sem e-mail';
+                    return `
+                    <div class="abandon-row">
+                        <span class="abandon-time">${time}</span>
+                        <span class="abandon-stage">${offer}</span>
+                        <span class="abandon-email">${email}</span>
                     </div>
-                `).join('')}
+                `;
+                }).join('')}
             </div>
         `;
         container.innerHTML = html;
@@ -1715,7 +2242,7 @@
 
             // Logs de sucesso (transações recentes)
             const successLogs = await db.collection('transactions')
-                .orderBy('created_at', 'desc')
+                .orderBy('gateway_created_at', 'desc')
                 .limit(10)
                 .get();
 
@@ -1724,7 +2251,7 @@
             // Logs de erro (se existir coleção webhook_errors)
             try {
                 const errorLogs = await db.collection('webhook_errors')
-                    .orderBy('created_at', 'desc')
+                    .orderBy('gateway_created_at', 'desc')
                     .limit(10)
                     .get();
                 renderWebhookErrors(errorLogs.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -1748,9 +2275,9 @@
 
         let html = '';
         logs.forEach(log => {
-            const time = log.created_at?.toDate ?
-                formatDateTime(log.created_at.toDate().getTime()) :
-                formatDateTime(log.gateway_created_at || Date.now());
+            const time = log.gateway_created_at ?
+                formatDateTime(new Date(log.gateway_created_at).getTime()) :
+                (log.created_at?.toDate ? formatDateTime(log.created_at.toDate().getTime()) : '-');
 
             html += `
                 <div class="log-item success">
@@ -1774,9 +2301,9 @@
 
         let html = '';
         errors.forEach(err => {
-            const time = err.created_at?.toDate ?
-                formatDateTime(err.created_at.toDate().getTime()) :
-                formatDateTime(Date.now());
+            const time = err.gateway_created_at ?
+                formatDateTime(new Date(err.gateway_created_at).getTime()) :
+                (err.created_at?.toDate ? formatDateTime(err.created_at.toDate().getTime()) : '-');
 
             html += `
                 <div class="log-item error">
@@ -1792,8 +2319,24 @@
     function init() {
         // Bind do seletor de período
         const periodSelect = document.getElementById('period-select');
+        const customRangeEl = document.getElementById('custom-date-range');
         if (periodSelect) {
             periodSelect.addEventListener('change', () => {
+                if (customRangeEl) {
+                    customRangeEl.hidden = periodSelect.value !== 'custom';
+                }
+                // Para "personalizado" só recarrega quando clicar "Aplicar" (senão
+                // recarregaria com datas vazias antes do usuário escolher)
+                if (periodSelect.value !== 'custom') {
+                    window.isManualRefresh = true;
+                    refreshDashboard();
+                }
+            });
+        }
+
+        const applyCustomDateBtn = document.getElementById('apply-custom-date-btn');
+        if (applyCustomDateBtn) {
+            applyCustomDateBtn.addEventListener('click', () => {
                 window.isManualRefresh = true;
                 refreshDashboard();
             });
@@ -1813,41 +2356,54 @@
         const clearBtn = document.getElementById('clear-btn');
         if (clearBtn) {
             clearBtn.addEventListener('click', async function () {
-                if (confirm('⚠️ PERIGO: Isso vai apagar TODOS os dados do SERVIDOR (Leads, Vendas, Histórico). Tem certeza absoluta?')) {
-                    if (confirm('Confirmação final: Deseja realmente ZERAR todo o banco de dados?')) {
-                        const originalText = clearBtn.innerText;
-                        clearBtn.innerText = 'Apagando...';
-                        clearBtn.disabled = true;
+                const confirmPhrase = 'APAGAR TUDO';
+                const typed = prompt(
+                    '⚠️ PERIGO: isso vai apagar TODOS os dados de PRODUÇÃO (leads, vendas, histórico) ' +
+                    'de forma PERMANENTE, sem possibilidade de desfazer.\n\n' +
+                    'Para confirmar, digite exatamente: ' + confirmPhrase
+                );
+                if (typed === confirmPhrase) {
+                    const originalText = clearBtn.innerText;
+                    clearBtn.innerText = 'Apagando...';
+                    clearBtn.disabled = true;
 
-                        try {
-                            // Wipes collections
-                            await Promise.all([
-                                wipeCollection('users'),
-                                wipeCollection('events'),
-                                wipeCollection('transactions'),
-                                wipeCollection('cart_abandons'),
-                                wipeCollection('webhook_errors')
-                            ]);
+                    try {
+                        // Wipes collections
+                        await Promise.all([
+                            wipeCollection('users'),
+                            wipeCollection('events'),
+                            wipeCollection('transactions'),
+                            wipeCollection('cart_abandons'),
+                            wipeCollection('webhook_errors')
+                        ]);
 
-                            // Clear local
-                            localStorage.removeItem('madames_funnel_events');
-                            localStorage.removeItem('madames_user_data');
+                        // Clear local
+                        localStorage.removeItem('madames_funnel_events');
+                        localStorage.removeItem('madames_user_data');
 
-                            alert('Banco de dados limpo com sucesso!');
-                            window.location.reload();
-                        } catch (error) {
-                            console.error('Erro ao limpar:', error);
-                            alert('Erro ao limpar dados: ' + error.message);
-                            clearBtn.innerText = originalText;
-                            clearBtn.disabled = false;
-                        }
+                        alert('Banco de dados limpo com sucesso!');
+                        window.location.reload();
+                    } catch (error) {
+                        console.error('Erro ao limpar:', error);
+                        alert('Erro ao limpar dados: ' + error.message);
+                        clearBtn.innerText = originalText;
+                        clearBtn.disabled = false;
                     }
+                } else if (typed !== null) {
+                    alert('Frase incorreta. Nada foi apagado.');
                 }
             });
         }
     }
 
     // Helper para limpar coleção
+    // Antes: buscava só 100 docs por vez e apagava um lote de cada vez, esperando
+    // cada commit terminar antes de buscar o próximo — pra 1000 docs isso é 10
+    // round-trips sequenciais de leitura+escrita. Agora: busca páginas maiores
+    // (2000 docs por vez) e dispara vários lotes de apagar em paralelo (o
+    // Firestore aceita até 500 deletes por batch, e batches diferentes não
+    // dependem entre si). Nota: .select() (projeção de campos) só existe no
+    // SDK Admin (servidor) — o SDK client-side do Firestore não tem esse método.
     async function wipeCollection(collectionName) {
         if (!db) {
             console.error(`❌ Erro ao limpar ${collectionName}: Firestore (db) não inicializado`);
@@ -1855,34 +2411,35 @@
         }
 
         console.log(`🧹 Limpando coleção: ${collectionName}...`);
-        const batchSize = 100;
-        const query = db.collection(collectionName).limit(batchSize);
+        const PAGE_SIZE = 2000;
+        const BATCH_SIZE = 500; // limite do Firestore por batch
 
         try {
-            await deleteQueryBatch(db, query);
-            console.log(`✅ Coleção ${collectionName} limpa com sucesso.`);
+            let totalDeleted = 0;
+            while (true) {
+                const snapshot = await db.collection(collectionName).limit(PAGE_SIZE).get();
+                if (snapshot.empty) break;
+
+                const docs = snapshot.docs;
+                const chunks = [];
+                for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+                    chunks.push(docs.slice(i, i + BATCH_SIZE));
+                }
+
+                await Promise.all(chunks.map((chunk) => {
+                    const batch = db.batch();
+                    chunk.forEach((doc) => batch.delete(doc.ref));
+                    return batch.commit();
+                }));
+
+                totalDeleted += docs.length;
+                if (docs.length < PAGE_SIZE) break; // essa foi a última página
+            }
+            console.log(`✅ Coleção ${collectionName} limpa com sucesso (${totalDeleted} documentos).`);
         } catch (error) {
             console.error(`❌ Erro ao limpar coleção ${collectionName}:`, error);
             throw error; // Repassa para o Promise.all capturar
         }
-    }
-
-    async function deleteQueryBatch(db, query) {
-        const snapshot = await query.get();
-
-        if (snapshot.size === 0) {
-            return;
-        }
-
-        const batch = db.batch();
-        snapshot.docs.forEach((doc) => {
-            batch.delete(doc.ref);
-        });
-
-        await batch.commit();
-
-        // Recurse until empty
-        return deleteQueryBatch(db, query);
     }
 
 

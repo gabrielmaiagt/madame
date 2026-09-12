@@ -145,16 +145,20 @@
         }
 
         // Tracking de botão de presente (se existir)
-        const giftButtons = document.querySelectorAll('button:has(svg[class*="gift"]), button:contains("Presente")');
+        // Nota: ":contains()" não é seletor CSS válido (é sintaxe jQuery) — usar isso
+        // em querySelectorAll lançava SyntaxError e travava esse trecho inteiro.
+        const giftButtons = Array.from(document.querySelectorAll('button')).filter((btn) =>
+            btn.querySelector('svg[class*="gift"]') || btn.textContent.includes('Presente')
+        );
         giftButtons.forEach((btn) => {
             if (!btn.dataset.giftTrackingAdded) {
                 btn.dataset.giftTrackingAdded = 'true';
                 btn.addEventListener('click', function () {
-                    window.MadamesTracking.trackGiftClaim('auto', 50, 'chat');
+                    window.MadamesTracking.trackGiftClaim('auto', 150, 'chat');
 
                     // 🎯 Track paywall source - tentou resgatar presente
                     if (window.MadamesTracking) {
-                        window.MadamesTracking.trackPaywall('view', 'chat_gift_claim', 19.90);
+                        window.MadamesTracking.trackPaywall('view', 'chat_gift_claim', 27.00);
                     }
 
                     console.log('🎁 Clicou em presente no chat (source: chat_gift_claim)');
@@ -163,8 +167,9 @@
         });
 
         // 🎯 Tracking de botão de saldo no chat
-        const saldoBtn = document.querySelector('button:has(span:contains("saldo"))') ||
-            document.querySelector('button:has(span:contains("R$"))');
+        const saldoBtn = Array.from(document.querySelectorAll('button')).find((btn) =>
+            btn.textContent.toLowerCase().includes('saldo') || btn.textContent.includes('R$')
+        );
         if (saldoBtn && !saldoBtn.dataset.saldoTrackingAdded) {
             saldoBtn.dataset.saldoTrackingAdded = 'true';
             saldoBtn.addEventListener('click', function () {
@@ -172,7 +177,7 @@
 
                 // Track paywall source - clicou no saldo no chat
                 if (window.MadamesTracking) {
-                    window.MadamesTracking.trackPaywall('view', 'chat_saldo_click', 19.90);
+                    window.MadamesTracking.trackPaywall('view', 'chat_saldo_click', 27.00);
                 }
 
                 console.log('💰 Clicou no saldo (source: chat_saldo_click)');

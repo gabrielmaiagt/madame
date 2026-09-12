@@ -56,6 +56,21 @@ exports.paymentWebhook = functions.https.onRequest((req, res) => {
 
         } catch (error) {
             console.error('Erro no webhook:', error);
+
+            // Registra o erro no Firestore para aparecer no painel admin
+            // (antes disso, a coleção webhook_errors nunca era escrita)
+            try {
+                await db.collection('webhook_errors').add({
+                    error_type: error.name || 'Error',
+                    message: error.message || String(error),
+                    payload_preview: JSON.stringify(req.body || {}).substring(0, 500),
+                    created_at: admin.firestore.FieldValue.serverTimestamp(),
+                    gateway_created_at: new Date().toISOString()
+                });
+            } catch (logError) {
+                console.error('Falha ao registrar erro do webhook:', logError);
+            }
+
             return res.status(500).json({ error: 'Internal server error' });
         }
     });
