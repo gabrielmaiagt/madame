@@ -62,19 +62,69 @@
       window.location.href = url + checkoutQueryString();
     }
 
-    // Tracking de visualização da oferta principal
-    if (window.MadamesTracking) {
-      window.MadamesTracking.trackPageView(cfg.pagePath);
-      window.MadamesTracking.trackPaywall('view', 'upsell_' + cfg.step, cfg.mainPrice);
-    }
-    track('view_main', cfg.mainPrice);
-
     var acceptMain = document.getElementById('accept-main');
     var declineMain = document.getElementById('decline-main');
     var acceptDownsell = document.getElementById('accept-downsell');
     var declineDownsell = document.getElementById('decline-downsell');
     var mainOffer = document.getElementById('main-offer');
     var downsellOffer = document.getElementById('downsell-offer');
+
+    function showDownsell(source) {
+      if (!downsellOffer) return;
+      if (mainOffer) mainOffer.hidden = true;
+      downsellOffer.hidden = false;
+      window.scrollTo(0, 0);
+      track('view_downsell', cfg.downsellPrice);
+      if (window.MadamesTracking) {
+        window.MadamesTracking.trackPaywall('view', 'upsell_' + cfg.step + '_downsell', cfg.downsellPrice);
+      }
+      console.log('upsell-flow: mostrando downsell (motivo: ' + source + ')');
+    }
+
+    // Entrar direto no downsell via URL (?downsell=1) — usado como redirect de
+    // abandono de checkout configurado no gateway (a pessoa foi pro checkout da
+    // oferta principal, saiu sem pagar, e o gateway manda ela de volta aqui já
+    // caindo direto na tela de downsell, sem ver a oferta principal de novo).
+    var startsOnDownsell = downsellOffer && new URLSearchParams(window.location.search).get('downsell') === '1';
+
+    // Tracking de visualização
+    if (window.MadamesTracking) {
+      window.MadamesTracking.trackPageView(cfg.pagePath);
+    }
+    if (startsOnDownsell) {
+      showDownsell('url_param');
+    } else {
+      if (window.MadamesTracking) {
+        window.MadamesTracking.trackPaywall('view', 'upsell_' + cfg.step, cfg.mainPrice);
+      }
+      track('view_main', cfg.mainPrice);
+    }
+
+    // Exit intent via botão "voltar" do navegador, em duas etapas:
+    // 1ª tentativa de voltar (na oferta principal) -> mostra o downsell.
+    // 2ª tentativa de voltar (já no downsell) -> manda pro próximo upsell da
+    // cadeia, igual clicar em "recusar" o downsell. Só na 3ª ela sai de verdade.
+    // Se a página já abriu direto no downsell (via ?downsell=1), a 1ª tentativa
+    // de voltar já manda direto pro próximo upsell.
+    if (downsellOffer) {
+      var exitStage = startsOnDownsell ? 1 : 0;
+      history.pushState({ madamesUpsellGuard: true }, '', window.location.href);
+      window.addEventListener('popstate', function () {
+        if (exitStage === 0) {
+          exitStage = 1;
+          track('exit_intent', cfg.mainPrice);
+          showDownsell('back_button');
+          // Empurra outro estado pra capturar a próxima tentativa de voltar também.
+          history.pushState({ madamesUpsellGuard: true }, '', window.location.href);
+        } else if (exitStage === 1) {
+          exitStage = 2;
+          track('exit_intent_downsell', cfg.downsellPrice);
+          track('decline_downsell', cfg.downsellPrice);
+          window.location.href = cfg.nextUrl;
+        }
+        // exitStage === 2: navegação pro próximo upsell já em andamento, ignora.
+      });
+    }
 
     if (acceptMain) {
       acceptMain.addEventListener('click', function (e) {
@@ -88,13 +138,7 @@
         e.preventDefault();
         track('decline_main', cfg.mainPrice);
         if (downsellOffer) {
-          if (mainOffer) mainOffer.hidden = true;
-          downsellOffer.hidden = false;
-          window.scrollTo(0, 0);
-          track('view_downsell', cfg.downsellPrice);
-          if (window.MadamesTracking) {
-            window.MadamesTracking.trackPaywall('view', 'upsell_' + cfg.step + '_downsell', cfg.downsellPrice);
-          }
+          showDownsell('decline_button');
         } else if (cfg.nextUrl) {
           // Página sem downsell (ex: backredirect): recusar já manda pro destino final
           window.location.href = cfg.nextUrl;
