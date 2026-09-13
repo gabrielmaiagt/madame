@@ -1,4 +1,6 @@
-/* Madames Online - Estilo compartilhado das páginas de upsell/downsell */
+/* Madames Online - Estilo compartilhado das páginas de upsell/downsell
+   Alinhado com o visual real do modal VIP do app (gray-900/950, cards em
+   cinza com borda sutil, dourado/laranja reservado pra preço e CTA). */
 
 * {
   box-sizing: border-box;
@@ -6,10 +8,17 @@
 
 body {
   margin: 0;
-  background: #000;
+  background: linear-gradient(180deg, #111827, #030712);
   color: #fff;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: "";
+  display: block;
+  height: 4px;
+  background: linear-gradient(90deg, #fcd34d, #f59e0b, #fcd34d);
 }
 
 .wrap {
@@ -18,21 +27,23 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: 28px 20px 40px;
+  padding: 24px 20px 40px;
+  position: relative;
 }
 
 .logo {
-  width: 120px;
+  width: 110px;
   margin: 0 auto 18px;
   display: block;
 }
 
 h1 {
   text-align: center;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   font-weight: 800;
   line-height: 1.25;
   margin: 0 0 10px;
+  color: #fff;
 }
 
 h1 span {
@@ -44,38 +55,38 @@ h1 span {
 
 .subtitle {
   text-align: center;
-  color: #a1a1aa;
-  font-size: 0.95rem;
-  margin: 0 0 26px;
+  color: #9ca3af;
+  font-size: 0.92rem;
+  margin: 0 0 24px;
   line-height: 1.5;
 }
 
 .price-card {
-  background: linear-gradient(180deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.02));
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  border-radius: 18px;
-  padding: 22px;
+  background: rgba(31, 41, 55, 0.5);
+  border: 1px solid rgba(55, 65, 81, 0.6);
+  border-radius: 14px;
+  padding: 20px;
   text-align: center;
   margin-bottom: 22px;
 }
 
 .price-label {
-  font-size: 0.8rem;
-  color: #d1d5db;
+  font-size: 0.78rem;
+  color: #9ca3af;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-bottom: 6px;
 }
 
 .price-old {
-  font-size: 1.1rem;
-  color: #71717a;
+  font-size: 1.05rem;
+  color: #6b7280;
   text-decoration: line-through;
   margin-bottom: 2px;
 }
 
 .price {
-  font-size: 2.6rem;
+  font-size: 2.5rem;
   font-weight: 800;
   background: linear-gradient(90deg, #fcd34d, #f59e0b, #fcd34d);
   -webkit-background-clip: text;
@@ -92,18 +103,21 @@ h1 span {
 
 .benefits {
   list-style: none;
-  margin: 0 0 26px;
-  padding: 0;
+  margin: 0 0 22px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  background: rgba(31, 41, 55, 0.3);
+  border: 1px solid rgba(55, 65, 81, 0.4);
+  border-radius: 12px;
 }
 
 .benefits li {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  font-size: 0.95rem;
+  gap: 10px;
+  font-size: 0.92rem;
   color: #e5e7eb;
 }
 
@@ -111,23 +125,23 @@ h1 span {
   content: "✓";
   flex-shrink: 0;
   font-weight: 800;
-  color: #f59e0b;
+  color: #fbbf24;
 }
 
 .cta {
   display: block;
   width: 100%;
   text-align: center;
-  padding: 18px;
-  border: none;
+  padding: 17px;
+  border: 1px solid rgba(252, 211, 77, 0.5);
   border-radius: 999px;
-  background: linear-gradient(90deg, #f59e0b, #fbbf24);
-  color: #1a1200;
+  background: linear-gradient(90deg, #f59e0b, #ea580c);
+  color: #fff;
   font-weight: 800;
-  font-size: 1.05rem;
+  font-size: 1.02rem;
   cursor: pointer;
   text-decoration: none;
-  box-shadow: 0 0 24px rgba(245, 158, 11, 0.35);
+  box-shadow: 0 0 14px rgba(255, 191, 0, 0.4);
   transition: transform 0.15s ease;
 }
 
@@ -139,7 +153,7 @@ h1 span {
   display: block;
   text-align: center;
   margin-top: 16px;
-  color: #71717a;
+  color: #6b7280;
   font-size: 0.85rem;
   text-decoration: underline;
   cursor: pointer;
@@ -150,13 +164,13 @@ h1 span {
 }
 
 .decline-link:hover {
-  color: #a1a1aa;
+  color: #9ca3af;
 }
 
 .trust {
   text-align: center;
   font-size: 0.75rem;
-  color: #71717a;
+  color: #6b7280;
   margin-top: 14px;
   line-height: 1.5;
 }
@@ -166,25 +180,25 @@ h1 span {
   padding-top: 30px;
   text-align: center;
   font-size: 0.7rem;
-  color: #52525b;
+  color: #4b5563;
 }
 
 /* Downsell */
 .downsell-ribbon {
   text-align: center;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #fca5a5;
+  background: linear-gradient(90deg, rgba(153, 27, 27, 0.5), rgba(127, 29, 29, 0.5));
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #fecaca;
   font-weight: 700;
   font-size: 0.85rem;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: 10px;
   margin-bottom: 20px;
 }
 
 .discount-badge {
   display: inline-block;
-  background: #ef4444;
+  background: #dc2626;
   color: #fff;
   font-size: 0.75rem;
   font-weight: 800;
@@ -195,10 +209,10 @@ h1 span {
 
 /* Reason why (justificativa da taxa) */
 .reason-box {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  padding: 16px 18px;
+  background: rgba(31, 41, 55, 0.5);
+  border: 1px solid rgba(55, 65, 81, 0.5);
+  border-radius: 12px;
+  padding: 14px 16px;
   margin-bottom: 22px;
 }
 
@@ -207,20 +221,20 @@ h1 span {
   align-items: center;
   gap: 8px;
   font-weight: 700;
-  font-size: 0.9rem;
-  color: #fff;
+  font-size: 0.88rem;
+  color: #fbbf24;
   margin-bottom: 8px;
 }
 
 .reason-box p {
   margin: 0;
   font-size: 0.85rem;
-  color: #a1a1aa;
+  color: #d1d5db;
   line-height: 1.6;
 }
 
 .reason-box strong {
-  color: #e5e7eb;
+  color: #fff;
 }
 
 .downsell-reason {
@@ -233,15 +247,15 @@ h1 span {
 }
 
 .downsell-reason strong {
-  color: #fcd34d;
+  color: #fbbf24;
 }
 
 .selection-line {
   text-align: center;
-  font-size: 0.78rem;
-  color: #fcd34d;
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.25);
+  font-size: 0.76rem;
+  color: #fbbf24;
+  background: rgba(31, 41, 55, 0.6);
+  border: 1px solid rgba(251, 191, 36, 0.3);
   border-radius: 999px;
   padding: 7px 14px;
   margin: 0 auto 16px;
@@ -262,9 +276,9 @@ h1 span {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  border-radius: 12px;
+  background: rgba(31, 41, 55, 0.5);
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  border-radius: 10px;
   padding: 12px 14px;
   margin-bottom: 18px;
   font-size: 0.85rem;
@@ -276,4 +290,247 @@ h1 span {
 .guarantee-badge::before {
   content: "✓";
   font-weight: 800;
+}
+
+/* Comparação "sem pagar / pagando agora" */
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.compare-col {
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(55, 65, 81, 0.5);
+  background: rgba(31, 41, 55, 0.4);
+}
+
+.compare-col.compare-yes {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.compare-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #9ca3af;
+}
+
+.compare-yes .compare-title {
+  color: #86efac;
+}
+
+.compare-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.compare-col li {
+  font-size: 0.8rem;
+  color: #d1d5db;
+  line-height: 1.4;
+}
+
+.compare-no li::before {
+  content: "✕ ";
+  color: #f87171;
+}
+
+.compare-yes li::before {
+  content: "✓ ";
+  color: #4ade80;
+}
+
+/* Contador de tempo (reforço de urgência honesto: não bloqueia nada quando
+   chega a zero, só para de contar) */
+.countdown-note {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin: 0 0 18px;
+}
+
+.countdown-note strong {
+  color: #fca5a5;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+}
+
+/* FAQ em acordeão, recolhido por padrão — profundidade pra quem quer,
+   sem virar um card grande no meio da página */
+.faq {
+  margin-top: 22px;
+}
+
+.faq details {
+  border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+  padding: 12px 0;
+}
+
+.faq summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #e5e7eb;
+  list-style: none;
+}
+
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq summary::after {
+  content: "+";
+  float: right;
+  color: #fbbf24;
+  font-weight: 800;
+}
+
+.faq details[open] summary::after {
+  content: "−";
+}
+
+.faq p {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: #9ca3af;
+  line-height: 1.6;
+}
+
+/* ============================================================ */
+/* Header estilo app (substitui a logo gigante centralizada por
+   uma barra fina, igual o topo real do /discover e /chat) */
+/* ============================================================ */
+
+.app-header {
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-bottom: 1px solid rgba(55, 65, 81, 0.5);
+}
+
+.app-header-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(202, 24, 84, 0.5);
+  object-fit: cover;
+  background: #1f2937;
+}
+
+.app-header-name {
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+/* Saldo real do usuário (puxado do localStorage), pra ancorar a copy no
+   dinheiro que ele mesmo já acumulou, em vez de falar de forma genérica */
+.balance-callout {
+  text-align: center;
+  margin: 6px 0 22px;
+}
+
+.balance-label {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.balance-value {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #4ade80;
+  line-height: 1;
+  text-shadow: 0 0 20px rgba(74, 222, 128, 0.35);
+}
+
+.balance-projection {
+  font-size: 0.85rem;
+  color: #fbbf24;
+  margin-top: 8px;
+}
+
+.balance-projection strong {
+  font-size: 1.1rem;
+}
+
+/* Texto corrido: substitui os cards de "por que existe essa taxa" por um
+   parágrafo normal, misturado ao resto da leitura da página */
+.notice-text {
+  font-size: 0.92rem;
+  color: #d1d5db;
+  line-height: 1.65;
+  margin: 0 0 16px;
+}
+
+.notice-text strong {
+  color: #fff;
+}
+
+.plain-checks {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plain-checks li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: #9ca3af;
+}
+
+.plain-checks li::before {
+  content: "✓";
+  flex-shrink: 0;
+  font-weight: 800;
+  color: #fbbf24;
+}
+
+/* Preço mostrado no fluxo do texto, sem virar um "card de oferta" separado.
+   Proposital discreto: o saldo que a pessoa recebe (.balance-value) tem que
+   chamar mais atenção do que a taxa que ela paga, nunca o contrário. */
+.price-line {
+  text-align: center;
+  font-size: 0.92rem;
+  color: #9ca3af;
+  margin: 20px 0;
+}
+
+.price-line-old {
+  color: #6b7280;
+  text-decoration: line-through;
+  margin-right: 4px;
+}
+
+.price-line-value {
+  color: #fbbf24;
+  font-size: 1.15rem;
+}
+
+/* Última linha antes do botão: o fechamento do pitch, reforça o benefício
+   imediato bem no momento em que a pessoa vai decidir clicar ou não */
+.closing-pitch {
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 14px;
+  line-height: 1.4;
 }

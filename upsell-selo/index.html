@@ -17,60 +17,84 @@
 </head>
 
 <body>
-  <div class="wrap">
-    <img class="logo" src="/app/images/logo-madames.png" alt="Madames Online">
+  <header class="app-header">
+    <img class="app-header-logo" src="/app/images/logo-madames.png" alt="">
+    <span class="app-header-name">Madames Online</span>
+  </header>
 
+  <div class="wrap">
     <!-- OFERTA PRINCIPAL -->
     <div id="main-offer">
       <p class="selection-line">Por estar entre os perfis mais ativos hoje, você desbloqueou o Selo de Destaque.</p>
 
-      <h1>Ative seu <span>Selo de Destaque</span></h1>
-      <p class="subtitle">Apareça pra mais coroas, ganhe mais PIX e participe de mais sorteios.</p>
+      <h1>Suas curtidas podem valer <span>o dobro</span></h1>
 
-      <ul class="benefits">
-        <li><span>Selo de Destaque no seu perfil. Você aparece primeiro pras coroas, antes de qualquer usuário sem selo.</span></li>
-        <li><span>Suas curtidas passam a valer até <strong>R$ 120 cada</strong>, o dobro do valor normal.</span></li>
-        <li><span>Sorteios extras de <strong>iPhone, motos e viagens</strong>, exclusivos pra quem tem o selo.</span></li>
-        <li><span>Bônus de boas-vindas + bônus de sorteio + bônus de indicação, todos empilhados na mesma conta.</span></li>
-        <li><span>Potencial de até <strong>R$ 2.000 por semana</strong> com a prioridade do selo.</span></li>
+      <div class="balance-callout">
+        <div class="balance-label">Seu saldo acumulado até agora</div>
+        <div class="balance-value" id="balance-value">R$ 0,00</div>
+        <p class="balance-projection" id="balance-projection" hidden>Com o Selo ativo desde o início, isso seria <strong id="balance-projected-value">R$ 0,00</strong></p>
+      </div>
+
+      <p class="notice-text">O <strong>Selo de Destaque</strong> prioriza seu perfil nas buscas das coroas, então você aparece primeiro e recebe mais curtidas no total. Enquanto ele estiver ativo, cada curtida também passa a valer o dobro do normal. É uma ativação única, sem mensalidade, e os benefícios ficam permanentes no seu perfil.</p>
+
+      <div class="compare-grid">
+        <div class="compare-col compare-no">
+          <div class="compare-title">Sem o selo</div>
+          <ul>
+            <li>Curtida no valor normal</li>
+            <li>Fila comum de perfis</li>
+            <li>Só sorteios semanais normais</li>
+          </ul>
+        </div>
+        <div class="compare-col compare-yes">
+          <div class="compare-title">Com o selo</div>
+          <ul>
+            <li>Curtida vale o dobro</li>
+            <li>Aparece primeiro pras coroas</li>
+            <li>Sorteios extras de iPhone, motos e viagens</li>
+          </ul>
+        </div>
+      </div>
+
+      <ul class="plain-checks">
+        <li>Bônus de boas-vindas, de sorteio e de indicação, empilhados na mesma conta.</li>
+        <li>Benefícios permanentes, ativos assim que o pagamento é confirmado.</li>
       </ul>
 
-      <div class="reason-box">
-        <div class="reason-title">Por que existe esse selo?</div>
-        <p>O <strong>Selo de Destaque</strong> prioriza seu perfil nas buscas das coroas e libera sorteios extras de iPhone, motos e viagens. Por isso, ele é limitado e cobrado como uma ativação única.</p>
-      </div>
+      <p class="price-line">Ativação única do selo: <span class="price-line-old">R$ 97,00</span> <strong class="price-line-value">R$ 24,90</strong></p>
 
-      <div class="price-card">
-        <div class="price-label">Ativação única do selo</div>
-        <div class="price-old">Valor normal: R$ 97,00</div>
-        <div class="price">R$ 24,90</div>
-        <div class="price-note">Ativação imediata. Benefícios permanentes no seu perfil.</div>
-      </div>
-
-      <a href="#" class="cta" id="accept-main">ATIVAR SELO DE DESTAQUE</a>
-      <button type="button" class="decline-link" id="decline-main">Não, obrigado, quero continuar sem o selo</button>
+      <a href="#" class="cta" id="accept-main">ATIVAR SELO E DOBRAR MINHAS CURTIDAS</a>
+      <button type="button" class="decline-link" id="decline-main">Não, prefiro continuar recebendo menos por curtida</button>
       <p class="trust">Sem o selo, seu perfil continua na fila normal, sem prioridade.</p>
       <p class="scarcity-note">Essa oferta só existe nesta tela. Se você sair, ela não aparece de novo.</p>
+
+      <div class="faq">
+        <details>
+          <summary>Por que existe esse selo?</summary>
+          <p>O selo prioriza seu perfil nas buscas das coroas e libera sorteios extras. Por ser um benefício limitado e permanente, é cobrado como uma ativação única.</p>
+        </details>
+        <details>
+          <summary>É uma cobrança única?</summary>
+          <p>Sim, não é mensalidade. Você paga uma vez e o selo fica ativo no seu perfil pra sempre.</p>
+        </details>
+        <details>
+          <summary>Quando os benefícios começam a valer?</summary>
+          <p>Assim que o pagamento é confirmado, o selo é ativado automaticamente e as curtidas já passam a valer o dobro.</p>
+        </details>
+      </div>
     </div>
 
     <!-- DOWNSELL -->
     <div id="downsell-offer" hidden>
       <div class="downsell-ribbon">Espera! Preparamos uma condição especial só pra você</div>
       <h1>Última chance: <span>50% OFF</span> no selo</h1>
-      <p class="subtitle">Só agora, o Selo de Destaque sai pela metade do preço.</p>
 
-      <p class="downsell-reason"><strong>Por que esse desconto?</strong> Como você já chegou até aqui, liberamos o selo pela metade do preço, só dessa vez.</p>
+      <p class="notice-text">Como você já chegou até aqui, liberamos o selo pela metade do preço, só dessa vez. Suas curtidas continuam valendo o dobro assim que o selo for ativado.</p>
 
-      <div class="price-card">
-        <span class="discount-badge">50% OFF</span>
-        <div class="price-label">Ativação única do selo</div>
-        <div class="price-old">De R$ 24,90</div>
-        <div class="price">R$ 12,45</div>
-        <div class="price-note">Essa condição não volta a aparecer</div>
-      </div>
+      <p class="price-line">Ativação única do selo: <span class="price-line-old">R$ 24,90</span> <strong class="price-line-value">R$ 12,45</strong></p>
 
       <a href="#" class="cta" id="accept-downsell">SIM, QUERO POR R$ 12,45</a>
-      <button type="button" class="decline-link" id="decline-downsell">Não, quero continuar sem o selo</button>
+      <button type="button" class="decline-link" id="decline-downsell">Não, prefiro não aparecer mais pras coroas</button>
     </div>
 
     <div class="footer">© <span id="year"></span> Madames Online. Todos os direitos reservados.</div>
@@ -81,7 +105,29 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <script src="/admin/js/firebase-config.js"></script>
   <script src="/admin/js/tracking.js"></script>
-  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Mesmo saldo real mostrado no /discover, /chat e nos outros upsells.
+    // Aqui também calcula a projeção "em dobro" pra tornar o benefício do
+    // selo concreto em cima do dinheiro que a pessoa já ganhou de verdade.
+    (function () {
+      var raw = parseFloat(localStorage.getItem('userBalance') || '0');
+      var el = document.getElementById('balance-value');
+      var callout = el ? el.closest('.balance-callout') : null;
+      var projection = document.getElementById('balance-projection');
+      var projectedValue = document.getElementById('balance-projected-value');
+      if (raw > 0 && el) {
+        el.textContent = 'R$ ' + raw.toFixed(2).replace('.', ',');
+        if (projection && projectedValue) {
+          projectedValue.textContent = 'R$ ' + (raw * 2).toFixed(2).replace('.', ',');
+          projection.hidden = false;
+        }
+      } else if (callout) {
+        callout.hidden = true;
+      }
+    })();
+  </script>
 
   <!-- Configuração desta página de upsell -->
   <script>

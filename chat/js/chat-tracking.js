@@ -154,7 +154,7 @@
             if (!btn.dataset.giftTrackingAdded) {
                 btn.dataset.giftTrackingAdded = 'true';
                 btn.addEventListener('click', function () {
-                    window.MadamesTracking.trackGiftClaim('auto', 150, 'chat');
+                    window.MadamesTracking.trackGiftClaim('auto', 250, 'chat');
 
                     // 🎯 Track paywall source - tentou resgatar presente
                     if (window.MadamesTracking) {

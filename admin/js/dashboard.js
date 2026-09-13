@@ -705,6 +705,72 @@
     }
 
     // =====================
+    // Saldo fictício dos leads (curtidas + presentes) nos momentos-chave do
+    // funil, pra saber se as taxas de saque/IOF fazem sentido perto do que a
+    // pessoa realmente acumulou. Vem do campo user_balance, presente em todo
+    // evento de paywall/checkout/upsell_step desde que essa captura foi ligada.
+    // =====================
+
+    function calculateBalanceStats(events) {
+        function avg(list) {
+            if (list.length === 0) return null;
+            return list.reduce((sum, v) => sum + v, 0) / list.length;
+        }
+
+        const paywallBalances = events
+            .filter(e => e.event_type === 'paywall' && e.action === 'view' && typeof e.user_balance === 'number')
+            .map(e => e.user_balance);
+
+        const upsellFirstViewByStep = {};
+        events
+            .filter(e => e.event_type === 'upsell_step' && e.action === 'view_main' && typeof e.user_balance === 'number')
+            .forEach(e => {
+                if (!upsellFirstViewByStep[e.step]) upsellFirstViewByStep[e.step] = [];
+                upsellFirstViewByStep[e.step].push(e.user_balance);
+            });
+
+        const upsellAll = Object.values(upsellFirstViewByStep).flat();
+
+        return {
+            paywallAvg: avg(paywallBalances),
+            paywallCount: paywallBalances.length,
+            upsellAvg: avg(upsellAll),
+            upsellCount: upsellAll.length,
+            byStep: Object.keys(upsellFirstViewByStep).map(step => ({
+                step: step,
+                avg: avg(upsellFirstViewByStep[step]),
+                count: upsellFirstViewByStep[step].length
+            }))
+        };
+    }
+
+    function renderBalanceStats(stats) {
+        const container = document.getElementById('balance-stats');
+        if (!container) return;
+
+        const fmt = v => v === null ? 'Sem dados ainda' : 'R$ ' + v.toFixed(2).replace('.', ',');
+
+        const byStepHtml = stats.byStep.length > 0
+            ? stats.byStep.map(s => `<li><strong>${s.step}</strong>: ${fmt(s.avg)} (${formatNumber(s.count)} pessoas)</li>`).join('')
+            : '<li>Sem dados ainda</li>';
+
+        container.innerHTML = `
+            <div class="balance-stats-grid">
+                <div class="balance-stat">
+                    <span class="balance-stat-value">${fmt(stats.paywallAvg)}</span>
+                    <span class="balance-stat-label">Saldo médio ao ver o paywall (${formatNumber(stats.paywallCount)} pessoas)</span>
+                </div>
+                <div class="balance-stat">
+                    <span class="balance-stat-value">${fmt(stats.upsellAvg)}</span>
+                    <span class="balance-stat-label">Saldo médio ao entrar em qualquer upsell (${formatNumber(stats.upsellCount)} pessoas)</span>
+                </div>
+            </div>
+            <ul class="balance-stats-bystep">${byStepHtml}</ul>
+            <p class="campaign-table-note">Esse dado só existe a partir de quando essa captura foi ligada. Períodos anteriores aparecem sem dados. Serve pra calibrar se as taxas de saque/IOF fazem sentido perto do saldo real que os leads acumulam antes de chegar aqui.</p>
+        `;
+    }
+
+    // =====================
     // Funil de Upsells (vitalício, taxa de saque, IOF, manutenção...)
     // =====================
 
@@ -713,7 +779,7 @@
         { key: 'backredirect2', name: 'Backredirect 2 (última chance)', mainPrice: 9.90 },
         { key: 'vitalicio', name: 'Vitalício', mainPrice: 14.70, downsellPrice: 7.35 },
         { key: 'saque', name: 'Taxa de Saque', mainPrice: 19.90, downsellPrice: 9.95 },
-        { key: 'iof', name: 'Taxa de IOF', mainPrice: 22.00, downsellPrice: 11.00 },
+        { key: 'iof', name: 'Taxa de IOF', mainPrice: 22.37, downsellPrice: 11.19 },
         { key: 'selo', name: 'Selo de Destaque', mainPrice: 24.90, downsellPrice: 12.45 }
     ];
 
@@ -822,14 +888,30 @@
     //   utm_medium   = "Nome do conjunto de anúncios (adset)|id"
     //   utm_content  = "Nome do anúncio/criativo|id"
     //   utm_term     = posicionamento (ex: "Facebook_Mobile_Reels")
+    // Algumas UTMs chegam mal decodificadas: "+" literal no lugar de espaço (o
+    // link do anúncio foi montado com %2B, que decodifica pra "+" de verdade, não
+    // espaço), ou até com sequência %XX sobrando (ex.: "an%C3%BAncio" em vez de
+    // "anúncio", encoding aplicado 2x). Sem normalizar isso, a mesma campanha
+    // aparece duplicada/fragmentada na tabela com grafias diferentes.
+    function normalizeUtmValue(value) {
+        if (!value) return value;
+        let v = value;
+        try { v = decodeURIComponent(v); } catch (e) { /* não decodável, usa como está */ }
+        return v.replace(/\+/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
     function utmGroupKey(utms) {
         if (!utms || !utms.utm_source) return 'direct';
-        return [utms.utm_source, utms.utm_campaign || '', utms.utm_content || ''].join('||');
+        return [
+            normalizeUtmValue(utms.utm_source),
+            normalizeUtmValue(utms.utm_campaign) || '',
+            normalizeUtmValue(utms.utm_content) || ''
+        ].join('||');
     }
 
     function stripId(value) {
         if (!value) return null;
-        return value.split('|')[0].trim();
+        return normalizeUtmValue(value.split('|')[0]);
     }
 
     function calculateCampaignBreakdown(events, transactionsInPeriod, allUsers) {
@@ -849,7 +931,7 @@
             if (!groups[key]) {
                 groups[key] = {
                     key: key,
-                    source: (utms && utms.utm_source) || 'Direto/Orgânico',
+                    source: (utms && normalizeUtmValue(utms.utm_source)) || 'Direto/Orgânico',
                     campaign: (utms && stripId(utms.utm_campaign)) || '-',
                     adset: (utms && stripId(utms.utm_medium)) || '-',
                     creative: (utms && stripId(utms.utm_content)) || '-',
@@ -1996,6 +2078,7 @@
             const advancedMetrics = calculateBottleneckAndAdvanced(events, metrics);
             const campaignBreakdown = calculateCampaignBreakdown(events, transactionsInPeriod, allUsersForAttribution);
             const upsellFunnel = calculateUpsellFunnel(events, transactionsInPeriod);
+            const balanceStats = calculateBalanceStats(events);
 
             // 4. Renderiza métricas básicas
             renderKPIs(metrics);
@@ -2007,6 +2090,7 @@
             renderDeviceStats(metrics);
             renderCampaignBreakdown(campaignBreakdown);
             renderUpsellFunnel(upsellFunnel);
+            renderBalanceStats(balanceStats);
 
             // 5. Renderiza gargalo e métricas avançadas
             renderBottleneckAlert(advancedMetrics);

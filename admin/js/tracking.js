@@ -54,6 +54,15 @@
   }
 
   // Obtém UTMs da URL ou localStorage
+  // Saldo fictício acumulado pelo usuário (curtidas no /discover + presentes no
+  // chat, ambos somam na mesma chave). Nunca era mandado pro tracking antes —
+  // sem isso não dá pra saber quanto os leads têm acumulado quando batem no
+  // paywall ou nos upsells de saque, nem se as taxas fazem sentido perto disso.
+  function getUserBalance() {
+    const v = parseFloat(localStorage.getItem('userBalance') || '0');
+    return isNaN(v) ? 0 : v;
+  }
+
   function getUtmData() {
     const params = new URLSearchParams(window.location.search);
     const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
@@ -467,7 +476,8 @@
       const event = createEvent('paywall', {
         action: action, // 'view', 'dismiss', 'click_checkout'
         source: source, // 'chat', 'match', 'recusa_tudo', 'premium_chat', 'gift_claim'
-        price: price || 27.00
+        price: price || 27.00,
+        user_balance: getUserBalance()
       });
       saveEvent(event);
     },
@@ -477,7 +487,8 @@
       const event = createEvent('checkout', {
         action: action, // 'init', 'complete', 'abandon'
         source: source,
-        price: price || 27.00
+        price: price || 27.00,
+        user_balance: getUserBalance()
       });
       saveEvent(event);
     },
@@ -525,7 +536,8 @@
       const event = createEvent('upsell_step', {
         step: step, // 'vitalicio', 'saque', 'iof', 'manutencao'
         action: action, // 'view_main','accept_main','decline_main','view_downsell','accept_downsell','decline_downsell'
-        price: price || null
+        price: price || null,
+        user_balance: getUserBalance()
       });
       saveEvent(event);
     },
@@ -675,7 +687,7 @@
 
       // Detecção de Gift Claim (Resgatar Presente)
       if (!alreadyTracked && (text.includes('resgatar') || text.includes('presente'))) {
-        window.MadamesTracking.trackGiftClaim('auto', 150, 'chat');
+        window.MadamesTracking.trackGiftClaim('auto', 250, 'chat');
       }
     }
 

