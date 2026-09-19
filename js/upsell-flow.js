@@ -69,6 +69,132 @@
     var mainOffer = document.getElementById('main-offer');
     var downsellOffer = document.getElementById('downsell-offer');
 
+    // PIX gerado direto na página (sem redirecionar pro checkout hospedado).
+    // Só existe nas páginas que declaram cfg.pix e têm o painel no HTML.
+    var pixPanel = document.getElementById('pix-panel');
+    var pixQrImg = document.getElementById('pix-qr-img');
+    var pixCodeInput = document.getElementById('pix-code-input');
+    var pixCopyBtn = document.getElementById('pix-copy-btn');
+    var pixStatusText = document.getElementById('pix-status-text');
+    var pixErrorText = document.getElementById('pix-error-text');
+    var pixPollTimer = null;
+
+    function trackingPayload() {
+      var params = new URLSearchParams(checkoutQueryString());
+      return {
+        src: params.get('src') || '',
+        utm_source: params.get('utm_source') || '',
+        utm_medium: params.get('utm_medium') || '',
+        utm_campaign: params.get('utm_campaign') || '',
+        utm_term: params.get('utm_term') || '',
+        utm_content: params.get('utm_content') || ''
+      };
+    }
+
+    function stopPixPolling() {
+      if (pixPollTimer) {
+        clearInterval(pixPollTimer);
+        pixPollTimer = null;
+      }
+    }
+
+    function pollPixStatus(hash, price, action) {
+      stopPixPolling();
+      pixPollTimer = setInterval(function () {
+        fetch(cfg.pix.functionsBaseUrl + '/checkPixStatus?hash=' + encodeURIComponent(hash))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data && data.status === 'paid') {
+              stopPixPolling();
+              if (pixStatusText) pixStatusText.textContent = 'Pagamento confirmado! Redirecionando...';
+              if (window.MadamesTracking) {
+                window.MadamesTracking.trackCheckout('complete', 'upsell_' + cfg.step, price);
+              }
+              setTimeout(function () {
+                window.location.href = cfg.nextUrl + checkoutQueryString();
+              }, 1200);
+            } else if (data && (data.status === 'cancelled' || data.status === 'refused' || data.status === 'refunded' || data.status === 'chargeback')) {
+              stopPixPolling();
+              if (pixStatusText) pixStatusText.textContent = 'Esse PIX não foi aprovado. Recarregue a página pra gerar outro.';
+            }
+          })
+          .catch(function (err) {
+            console.error('upsell-flow: erro ao consultar status do PIX', err);
+          });
+      }, 4000);
+    }
+
+    function startPixCheckout(chargeKey, price, action, button) {
+      var fallbackUrl = action === 'accept_downsell' ? cfg.downsellCheckoutUrl : cfg.mainCheckoutUrl;
+      if (!chargeKey || !pixPanel || !cfg.pix || !cfg.pix.functionsBaseUrl) {
+        goToCheckout(fallbackUrl, price, action);
+        return;
+      }
+
+      track(action, price);
+      if (window.MadamesTracking) {
+        window.MadamesTracking.trackPaywall('click_checkout', 'upsell_' + cfg.step, price);
+        window.MadamesTracking.trackCheckout('init', 'upsell_' + cfg.step);
+      }
+
+      var originalLabel = button ? button.textContent : null;
+      if (button) {
+        button.textContent = 'Gerando PIX...';
+        button.setAttribute('disabled', '');
+      }
+
+      fetch(cfg.pix.functionsBaseUrl + '/createPixCharge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chargeKey: chargeKey, tracking: trackingPayload() })
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data || !data.success) throw new Error('pix_creation_failed');
+          if (mainOffer) mainOffer.hidden = true;
+          if (downsellOffer) downsellOffer.hidden = true;
+          pixPanel.hidden = false;
+          if (pixQrImg) pixQrImg.src = data.qr_code;
+          if (pixCodeInput) pixCodeInput.value = data.pix_code;
+          if (pixStatusText) pixStatusText.textContent = 'Aguardando pagamento...';
+          window.scrollTo(0, 0);
+          pollPixStatus(data.hash, price, action);
+        })
+        .catch(function (err) {
+          console.error('upsell-flow: falha ao gerar PIX, caindo pro checkout externo', err);
+          if (button) {
+            button.removeAttribute('disabled');
+            if (originalLabel) button.textContent = originalLabel;
+          }
+          if (pixErrorText) {
+            pixErrorText.hidden = false;
+            pixErrorText.textContent = 'Não deu pra gerar o PIX agora. Redirecionando pro checkout...';
+          }
+          goToCheckout(fallbackUrl, price, action);
+        });
+    }
+
+    if (pixCopyBtn && pixCodeInput) {
+      pixCopyBtn.addEventListener('click', function () {
+        pixCodeInput.focus();
+        pixCodeInput.select();
+        pixCodeInput.setSelectionRange(0, 99999);
+        var copied = false;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(pixCodeInput.value);
+            copied = true;
+          }
+        } catch (e) { /* segue pro fallback abaixo */ }
+        if (!copied) {
+          try { document.execCommand('copy'); } catch (e) { /* nada mais a fazer */ }
+        }
+        var original = pixCopyBtn.textContent;
+        pixCopyBtn.textContent = 'Copiado!';
+        setTimeout(function () { pixCopyBtn.textContent = original; }, 2000);
+      });
+    }
+
     function showDownsell(source) {
       if (!downsellOffer) return;
       if (mainOffer) mainOffer.hidden = true;
@@ -129,7 +255,12 @@
     if (acceptMain) {
       acceptMain.addEventListener('click', function (e) {
         e.preventDefault();
-        goToCheckout(cfg.mainCheckoutUrl, cfg.mainPrice, 'accept_main');
+        var chargeKey = cfg.pix && cfg.pix.mainChargeKey;
+        if (chargeKey) {
+          startPixCheckout(chargeKey, cfg.mainPrice, 'accept_main', acceptMain);
+        } else {
+          goToCheckout(cfg.mainCheckoutUrl, cfg.mainPrice, 'accept_main');
+        }
       });
     }
 
@@ -149,7 +280,12 @@
     if (acceptDownsell) {
       acceptDownsell.addEventListener('click', function (e) {
         e.preventDefault();
-        goToCheckout(cfg.downsellCheckoutUrl, cfg.downsellPrice, 'accept_downsell');
+        var chargeKey = cfg.pix && cfg.pix.downsellChargeKey;
+        if (chargeKey) {
+          startPixCheckout(chargeKey, cfg.downsellPrice, 'accept_downsell', acceptDownsell);
+        } else {
+          goToCheckout(cfg.downsellCheckoutUrl, cfg.downsellPrice, 'accept_downsell');
+        }
       });
     }
 

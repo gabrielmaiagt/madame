@@ -6,10 +6,167 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
+const { defineSecret } = require('firebase-functions/params');
 
 // Inicializa Firebase Admin
 admin.initializeApp();
 const db = admin.firestore();
+
+// Token da API Frendz, guardado no Secret Manager (nunca no código nem no
+// bundle do site). Configurar com:
+//   firebase functions:secrets:set FRENDZ_API_TOKEN
+const frendzApiToken = defineSecret('FRENDZ_API_TOKEN');
+
+// =====================
+// PIX ONE CLICK (upsells)
+// =====================
+
+const FRENDZ_BASE_URL = 'https://api.frendz.com.br/api/public/v1';
+
+// Preço e identificação de cada oferta que usa PIX gerado direto na página
+// (sem redirecionar pro checkout hospedado da Frendz). O valor cobrado
+// sempre vem daqui, nunca do que o cliente manda na requisição.
+const PIX_CHARGES = {
+    iof_main: { productHash: 'hha7uooi3x', offerHash: 'ukgihx3fvt', title: 'Taxa de IOF', amount: 2349 },
+    saque_main: { productHash: 'e2x0rqabne', offerHash: 'a9reeqwbim', title: 'Liberação de Saque', amount: 1990 },
+    saque_downsell: { productHash: 'e2x0rqabne', offerHash: 'ibeil', title: 'Liberação de Saque (desconto)', amount: 995 },
+    selo_main: { productHash: 'x5mpnyubmp', offerHash: '8whgzth5cp', title: 'Selo de Destaque', amount: 2490 },
+    selo_downsell: { productHash: 'x5mpnyubmp', offerHash: 'fhm9k', title: 'Selo de Destaque (desconto)', amount: 1245 }
+};
+
+// A Frendz exige dados de cliente (nome, email, telefone, documento) pra
+// criar a transação, mas o funil não coleta isso do lead antes do upsell.
+// Usa dados fictícios só pro formato passar na validação da API; o email
+// varia por transação pra não colapsar compradores diferentes no mesmo
+// registro de "usuário" no webhook (que indexa por email).
+function mockCustomer() {
+    const rand = Math.random().toString(36).slice(2, 10);
+    return {
+        name: 'Cliente Madames Online',
+        email: `cliente.${rand}@madamesonline.com`,
+        phone_number: '11999999999',
+        document: '09115751031'
+    };
+}
+
+/**
+ * Endpoint: POST /createPixCharge
+ * Cria uma transação PIX na Frendz e devolve o QR code + código copia-e-cola
+ * direto pra página, sem sair do funil.
+ * Body: { chargeKey: 'iof_main' | 'saque_main' | ..., tracking?: {...utms} }
+ */
+exports.createPixCharge = functions.https.onRequest({ secrets: [frendzApiToken] }, (req, res) => {
+    cors(req, res, async () => {
+        if (req.method !== 'POST') {
+            return res.status(405).json({ error: 'Method not allowed' });
+        }
+
+        try {
+            const chargeKey = req.body && req.body.chargeKey;
+            const charge = PIX_CHARGES[chargeKey];
+            if (!charge) {
+                return res.status(400).json({ error: 'invalid_charge_key' });
+            }
+
+            const tracking = (req.body && req.body.tracking) || {};
+
+            const payload = {
+                amount: charge.amount,
+                offer_hash: charge.offerHash,
+                payment_method: 'pix',
+                customer: mockCustomer(),
+                cart: [{
+                    product_hash: charge.productHash,
+                    title: charge.title,
+                    cover: null,
+                    price: charge.amount,
+                    quantity: 1,
+                    operation_type: 1,
+                    tangible: false
+                }],
+                expire_in_days: 1,
+                transaction_origin: 'api',
+                // Sem isso a Frendz não avisa ninguém quando o PIX é pago: a venda
+                // nunca cairia na coleção transactions e sumiria das métricas do admin.
+                postback_url: 'https://us-central1-madame-67e19.cloudfunctions.net/paymentWebhook',
+                tracking: {
+                    src: tracking.src || '',
+                    utm_source: tracking.utm_source || '',
+                    utm_medium: tracking.utm_medium || '',
+                    utm_campaign: tracking.utm_campaign || '',
+                    utm_term: tracking.utm_term || '',
+                    utm_content: tracking.utm_content || ''
+                }
+            };
+
+            const frendzRes = await fetch(`${FRENDZ_BASE_URL}/transactions?api_token=${frendzApiToken.value()}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await frendzRes.json();
+
+            // A resposta real da Frendz não segue o formato documentado
+            // ({success, data: {...}}): os campos vêm direto na raiz, e o
+            // QR code é uma URL de imagem (data.pix.pix_url), não base64.
+            if (!frendzRes.ok || !data.hash || !data.pix) {
+                console.error('Frendz createPixCharge falhou:', frendzRes.status, JSON.stringify(data).substring(0, 500));
+                return res.status(frendzRes.status || 500).json({ error: 'frendz_error' });
+            }
+
+            return res.status(200).json({
+                success: true,
+                hash: data.hash,
+                qr_code: data.pix.pix_url,
+                pix_code: data.pix.pix_qr_code,
+                amount: charge.amount
+            });
+        } catch (error) {
+            console.error('Erro em createPixCharge:', error);
+            return res.status(500).json({ error: 'internal_error' });
+        }
+    });
+});
+
+/**
+ * Endpoint: GET/POST /checkPixStatus?hash=...
+ * Consulta o status atual de uma transação PIX na Frendz (proxy, pra não
+ * expor o api_token no navegador). Usado pela página de upsell pra fazer
+ * polling até o pagamento confirmar.
+ */
+exports.checkPixStatus = functions.https.onRequest({ secrets: [frendzApiToken] }, (req, res) => {
+    cors(req, res, async () => {
+        if (req.method !== 'GET' && req.method !== 'POST') {
+            return res.status(405).json({ error: 'Method not allowed' });
+        }
+
+        try {
+            const hash = req.method === 'GET' ? req.query.hash : (req.body && req.body.hash);
+            if (!hash) {
+                return res.status(400).json({ error: 'missing_hash' });
+            }
+
+            const frendzRes = await fetch(`${FRENDZ_BASE_URL}/transactions/${encodeURIComponent(hash)}?api_token=${frendzApiToken.value()}`, {
+                headers: { Accept: 'application/json' }
+            });
+            const data = await frendzRes.json();
+
+            if (!frendzRes.ok) {
+                return res.status(frendzRes.status).json({ error: 'frendz_error' });
+            }
+
+            // Campo real é payment_status (ex: waiting_payment, paid, refused,
+            // cancelled, refunded, chargeback), não "status" como a doc mostrava.
+            return res.status(200).json({
+                success: true,
+                status: data.payment_status || null
+            });
+        } catch (error) {
+            console.error('Erro em checkPixStatus:', error);
+            return res.status(500).json({ error: 'internal_error' });
+        }
+    });
+});
 
 // =====================
 // WEBHOOK DE PAGAMENTOS
@@ -97,10 +254,24 @@ function cleanUndefined(obj) {
  * Processa transação de pagamento
  */
 async function handleTransaction(payload) {
-    const transaction = payload.transaction || {};
+    // A Frendz manda dois formatos de payload dependendo de como a transação
+    // foi criada: o formato antigo (checkout hospedado) tem status/method/
+    // transaction.{id,amount,...} soltos; o formato novo (ex: transação criada
+    // via API) tem payment_status/payment_method e os campos (hash, amount,
+    // pix, offer, tracking) direto na raiz, igual ao GET /transactions/{hash}.
+    // payload.token é o id da CONTA (sempre o mesmo em toda transação), nunca
+    // pode ser usado como id do documento — foi o bug que fazia toda venda
+    // nova sobrescrever a mesma linha no Firestore.
+    const legacyTransaction = payload.transaction || {};
     const customer = payload.customer || {};
     const tracking = payload.tracking || {};
     const offer = payload.offer || {};
+    const pixData = payload.pix || legacyTransaction.pix || {};
+
+    const gatewayStatus = payload.payment_status || payload.status;
+    const method = payload.payment_method || payload.method;
+    const amount = (typeof payload.amount === 'number' ? payload.amount : legacyTransaction.amount) || 0;
+    const netAmount = (typeof payload.amount_liquid === 'number' ? payload.amount_liquid : legacyTransaction.net_amount) || 0;
 
     // Mapeia status para nossa métrica
     const statusMap = {
@@ -114,23 +285,23 @@ async function handleTransaction(payload) {
         'chargeback': 'checkout_chargeback'
     };
 
-    const internalStatus = statusMap[payload.status] || payload.status;
+    const internalStatus = statusMap[gatewayStatus] || gatewayStatus;
 
     // Dados para salvar
     const transactionData = {
         // Identificadores
-        transaction_id: transaction.id || payload.token,
+        transaction_id: payload.hash || legacyTransaction.id || payload.token,
         token: payload.token || null,
 
         // Status e método
-        gateway_status: payload.status,
+        gateway_status: gatewayStatus,
         internal_status: internalStatus,
-        method: payload.method,
+        method: method,
 
         // Valores (em centavos)
-        amount: transaction.amount || 0,
-        net_amount: transaction.net_amount || 0,
-        amount_formatted: `R$ ${((transaction.amount || 0) / 100).toFixed(2).replace('.', ',')}`,
+        amount: amount,
+        net_amount: netAmount,
+        amount_formatted: `R$ ${(amount / 100).toFixed(2).replace('.', ',')}`,
 
         // Cliente
         customer_id: customer.id || null,
@@ -147,12 +318,12 @@ async function handleTransaction(payload) {
         offer_price: offer.price || null,
 
         // URLs
-        checkout_url: transaction.checkout_url || null,
-        payment_url: transaction.url || null,
+        checkout_url: legacyTransaction.checkout_url || null,
+        payment_url: legacyTransaction.url || null,
 
         // PIX específico
-        pix_code: payload.method === 'pix' ? (transaction.pix?.code || null) : null,
-        pix_url: payload.method === 'pix' ? (transaction.pix?.url || null) : null,
+        pix_code: method === 'pix' ? (pixData.pix_qr_code || pixData.code || null) : null,
+        pix_url: method === 'pix' ? (pixData.pix_url || pixData.url || null) : null,
 
         // Tracking / UTMs
         utm_source: tracking.utm_source || null,
@@ -175,21 +346,22 @@ async function handleTransaction(payload) {
         refund_at: payload.refund_at || null,
 
         // Para queries
-        is_conversion: payload.status === 'paid',
-        is_pix: payload.method === 'pix',
-        is_pending: payload.status === 'waiting_payment'
+        is_conversion: gatewayStatus === 'paid',
+        is_pix: method === 'pix',
+        is_pending: gatewayStatus === 'waiting_payment'
     };
 
     // Remove undefined
     const cleanData = cleanUndefined(transactionData);
 
-    // Salva ou atualiza transação
-    const docId = transaction.id || payload.token || `tx_${Date.now()}`;
+    // Salva ou atualiza transação. NUNCA cair pro payload.token aqui: é o id
+    // da conta, igual em toda transação, e faria uma sobrescrever a outra.
+    const docId = payload.hash || legacyTransaction.id || `tx_${Date.now()}`;
     await db.collection('transactions').doc(docId).set(cleanData, { merge: true });
     console.log('💳 Transação salva:', docId, internalStatus);
 
     // Se for PIX pago, salva evento de conversão
-    if (payload.status === 'paid' && payload.method === 'pix') {
+    if (gatewayStatus === 'paid' && method === 'pix') {
         await saveConversionEvent(cleanData);
 
         // ✨ TRACKING: Registra checkout completion

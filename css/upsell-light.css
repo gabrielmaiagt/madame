@@ -1,0 +1,860 @@
+/* Madames Online - Tema claro das páginas de upsell (variante "app bancário")
+   Mesmas classes do css/upsell.css escuro, só reestilizadas em fundo claro
+   com cartões brancos e azul como cor de destaque neutra (não ligada a
+   nenhuma instituição). Header continua com a marca Madames Online. */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f3f4f6;
+  color: #111827;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: "";
+  display: block;
+  height: 4px;
+  background: linear-gradient(90deg, #93c5fd, #2563eb, #93c5fd);
+}
+
+.wrap {
+  max-width: 440px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 20px 40px;
+  position: relative;
+}
+
+.logo {
+  width: 110px;
+  margin: 0 auto 18px;
+  display: block;
+}
+
+h1 {
+  text-align: left;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.25;
+  margin: 0 0 10px;
+  color: #111827;
+}
+
+h1 span {
+  color: #2563eb;
+}
+
+.subtitle {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.92rem;
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.price-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 22px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.price-label {
+  font-size: 0.78rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.price-old {
+  font-size: 1.05rem;
+  color: #9ca3af;
+  text-decoration: line-through;
+  margin-bottom: 2px;
+}
+
+.price {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.price-note {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.benefits {
+  list-style: none;
+  margin: 0 0 22px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.92rem;
+  color: #1f2937;
+}
+
+.benefits li::before {
+  content: "✓";
+  flex-shrink: 0;
+  font-weight: 800;
+  color: #2563eb;
+}
+
+.cta {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 17px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #2563eb, #1d4ed8);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.02rem;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  transition: transform 0.15s ease;
+}
+
+.cta:active {
+  transform: scale(0.98);
+}
+
+.decline-link {
+  display: block;
+  text-align: center;
+  margin-top: 16px;
+  color: #9ca3af;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  padding: 8px;
+}
+
+.decline-link:hover {
+  color: #6b7280;
+}
+
+.trust {
+  text-align: center;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 14px;
+  line-height: 1.5;
+}
+
+.footer {
+  margin-top: auto;
+  padding-top: 30px;
+  text-align: center;
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+/* Downsell */
+.downsell-ribbon {
+  text-align: center;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.discount-badge {
+  display: inline-block;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+
+/* Reason why (justificativa da taxa) */
+.reason-box {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 22px;
+}
+
+.reason-box .reason-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #2563eb;
+  margin-bottom: 8px;
+}
+
+.reason-box p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.reason-box strong {
+  color: #111827;
+}
+
+.downsell-reason {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: -10px 0 20px;
+  padding: 0 6px;
+}
+
+.downsell-reason strong {
+  color: #2563eb;
+}
+
+.selection-line {
+  text-align: center;
+  font-size: 0.76rem;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  padding: 7px 14px;
+  margin: 0 auto 16px;
+  display: table;
+}
+
+.scarcity-note {
+  text-align: center;
+  font-size: 0.78rem;
+  color: #b91c1c;
+  font-weight: 600;
+  margin-top: 14px;
+  line-height: 1.5;
+}
+
+.guarantee-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  font-size: 0.85rem;
+  color: #15803d;
+  font-weight: 600;
+  text-align: center;
+}
+
+.guarantee-badge::before {
+  content: "✓";
+  font-weight: 800;
+}
+
+/* Comparação "sem pagar / pagando agora" */
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.compare-col {
+  border-radius: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.compare-col.compare-yes {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.compare-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #6b7280;
+}
+
+.compare-yes .compare-title {
+  color: #15803d;
+}
+
+.compare-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.compare-col li {
+  font-size: 0.8rem;
+  color: #374151;
+  line-height: 1.4;
+}
+
+.compare-no li::before {
+  content: "✕ ";
+  color: #dc2626;
+}
+
+.compare-yes li::before {
+  content: "✓ ";
+  color: #16a34a;
+}
+
+/* Contador de tempo (reforço de urgência honesto: não bloqueia nada quando
+   chega a zero, só para de contar) */
+.countdown-note {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0 0 18px;
+}
+
+.countdown-note strong {
+  color: #b91c1c;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+}
+
+/* FAQ em acordeão, recolhido por padrão */
+.faq {
+  margin-top: 22px;
+}
+
+.faq details {
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 0;
+}
+
+.faq summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1f2937;
+  list-style: none;
+}
+
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq summary::after {
+  content: "+";
+  float: right;
+  color: #2563eb;
+  font-weight: 800;
+}
+
+.faq details[open] summary::after {
+  content: "−";
+}
+
+.faq p {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+  line-height: 1.6;
+}
+
+/* ============================================================ */
+/* Header estilo app: marca Madames Online, nunca nenhuma outra */
+/* ============================================================ */
+
+.app-header {
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.app-header-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(202, 24, 84, 0.4);
+  object-fit: cover;
+  background: #f3f4f6;
+}
+
+.app-header-name {
+  color: #111827;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+/* Saldo real do usuário */
+.balance-callout {
+  text-align: center;
+  margin: 6px 0 22px;
+}
+
+.balance-label {
+  font-size: 0.78rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.balance-value {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #16a34a;
+  line-height: 1;
+}
+
+.balance-projection {
+  font-size: 0.85rem;
+  color: #1d4ed8;
+  margin-top: 8px;
+}
+
+.balance-projection strong {
+  font-size: 1.1rem;
+}
+
+/* Texto corrido */
+.notice-text {
+  font-size: 0.92rem;
+  color: #374151;
+  line-height: 1.65;
+  margin: 0 0 16px;
+}
+
+.notice-text strong {
+  color: #111827;
+}
+
+.plain-checks {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plain-checks li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.88rem;
+  color: #4b5563;
+}
+
+.plain-checks li::before {
+  content: "✓";
+  flex-shrink: 0;
+  font-weight: 800;
+  color: #2563eb;
+}
+
+/* Preço no fluxo do texto, sem virar card de oferta separado */
+.price-line {
+  text-align: center;
+  font-size: 0.92rem;
+  color: #6b7280;
+  margin: 20px 0;
+}
+
+.price-line-old {
+  color: #9ca3af;
+  text-decoration: line-through;
+  margin-right: 4px;
+}
+
+.price-line-value {
+  color: #111827;
+  font-size: 1.15rem;
+}
+
+/* Última linha antes do botão */
+.closing-pitch {
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 14px;
+  line-height: 1.4;
+}
+
+/* Resumo estilo recibo */
+.receipt-summary {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: #4b5563;
+  padding: 6px 0;
+}
+
+.receipt-value {
+  font-weight: 700;
+  color: #111827;
+}
+
+.receipt-negative {
+  color: #dc2626;
+}
+
+.receipt-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 6px 0;
+}
+
+.receipt-row-total {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.receipt-row-total .receipt-value {
+  color: #111827;
+  font-size: 1.3rem;
+}
+
+.receipt-title {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: #111827;
+  padding-bottom: 12px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.receipt-subtitle {
+  margin: -4px 0 4px;
+  font-size: 0.82rem;
+  color: #dc2626;
+}
+
+.receipt-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.receipt-note-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #374151;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+/* Tela de carregamento inicial (sequência de status + barra de progresso) */
+.loading-page {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 24px 20px 60px;
+}
+
+.loading-page[hidden] {
+  display: none;
+}
+
+.loading-status {
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 18px;
+  transition: opacity 0.18s ease;
+}
+
+.loading-status.is-fading {
+  opacity: 0;
+}
+
+.loading-progress-track {
+  width: 100%;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.loading-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: #2563eb;
+  border-radius: 999px;
+  transition: width 1.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.consent-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0 0 16px;
+  cursor: pointer;
+}
+
+.consent-line input {
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: #2563eb;
+}
+
+.cta[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Painel do PIX gerado na hora (fluxo one click, sem sair da página) */
+.pix-panel {
+  text-align: center;
+}
+
+.pix-panel-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #111827;
+  margin: 4px 0 6px;
+}
+
+.pix-panel-subtitle {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0 0 20px;
+  line-height: 1.5;
+}
+
+.pix-qr-box {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 14px;
+  display: inline-block;
+  margin: 0 auto 20px;
+}
+
+.pix-qr-box img {
+  display: block;
+  width: 200px;
+  height: 200px;
+}
+
+.pix-code-label {
+  text-align: left;
+  font-size: 0.78rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 8px;
+}
+
+.pix-code-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.pix-code-row input {
+  flex: 1;
+  min-width: 0;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  color: #374151;
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.pix-copy-btn {
+  flex-shrink: 0;
+  border: 1px solid #2563eb;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 0 18px;
+  cursor: pointer;
+}
+
+.pix-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.pix-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #2563eb;
+  animation: pix-pulse 1.4s ease-in-out infinite;
+}
+
+.pix-error {
+  font-size: 0.85rem;
+  color: #dc2626;
+  margin-top: 10px;
+}
+
+@keyframes pix-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+/* Card "Método de pagamento" com o ícone do Pix */
+.payment-method-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+.payment-method-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #111827;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.payment-method-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pix-icon {
+  height: 26px;
+  width: auto;
+}
+
+.payment-method-note {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.subtitle-left {
+  text-align: left;
+  font-size: 0.92rem;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+
+.required-note {
+  text-align: left;
+  font-size: 1rem;
+  color: #111827;
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+
+.required-note::before {
+  content: "* ";
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.warning-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  color: #b45309;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.warning-box .warning-icon {
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}

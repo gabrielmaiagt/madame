@@ -29,7 +29,7 @@
         // Helper para detectar e track paywall por source
         function trackPaywallIfNeeded(source) {
             if (window.MadamesTracking) {
-                window.MadamesTracking.trackPaywall('view', source, 27.00);
+                window.MadamesTracking.trackPaywall('view', source, 19.98);
                 console.log('🎯 Paywall source tracked:', source);
             }
         }

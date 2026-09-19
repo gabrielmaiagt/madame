@@ -653,7 +653,7 @@
                     }
                     if (event.action === 'complete') {
                         specific.checkout.completed++;
-                        const revenue = event.price || 27.00;
+                        const revenue = event.price || 19.98;
                         specific.checkout.totalRevenue += revenue;
 
                         // 🎯 Associa conversão ao source do paywall
@@ -779,7 +779,7 @@
         { key: 'backredirect2', name: 'Backredirect 2 (última chance)', mainPrice: 9.90 },
         { key: 'vitalicio', name: 'Vitalício', mainPrice: 14.70, downsellPrice: 7.35 },
         { key: 'saque', name: 'Taxa de Saque', mainPrice: 19.90, downsellPrice: 9.95 },
-        { key: 'iof', name: 'Taxa de IOF', mainPrice: 22.37, downsellPrice: 11.19 },
+        { key: 'iof', name: 'Taxa de IOF', mainPrice: 23.49 },
         { key: 'selo', name: 'Selo de Destaque', mainPrice: 24.90, downsellPrice: 12.45 }
     ];
 

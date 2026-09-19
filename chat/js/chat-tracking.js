@@ -158,7 +158,7 @@
 
                     // 🎯 Track paywall source - tentou resgatar presente
                     if (window.MadamesTracking) {
-                        window.MadamesTracking.trackPaywall('view', 'chat_gift_claim', 27.00);
+                        window.MadamesTracking.trackPaywall('view', 'chat_gift_claim', 19.98);
                     }
 
                     console.log('🎁 Clicou em presente no chat (source: chat_gift_claim)');
@@ -177,7 +177,7 @@
 
                 // Track paywall source - clicou no saldo no chat
                 if (window.MadamesTracking) {
-                    window.MadamesTracking.trackPaywall('view', 'chat_saldo_click', 27.00);
+                    window.MadamesTracking.trackPaywall('view', 'chat_saldo_click', 19.98);
                 }
 
                 console.log('💰 Clicou no saldo (source: chat_saldo_click)');

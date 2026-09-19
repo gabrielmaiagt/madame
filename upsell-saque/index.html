@@ -59,6 +59,22 @@
       <button type="button" class="decline-link" id="decline-downsell">Não, prefiro perder esse valor e deixar meu saldo travado</button>
     </div>
 
+    <!-- PIX gerado na hora (some quando accept-main ou accept-downsell é aceito) -->
+    <div id="pix-panel" class="pix-panel" hidden>
+      <p class="pix-panel-title">Escaneie ou copie o código Pix</p>
+      <p class="pix-panel-subtitle">Assim que o pagamento cair, seu saque continua automaticamente pra próxima etapa.</p>
+      <div class="pix-qr-box">
+        <img id="pix-qr-img" src="" alt="QR Code Pix">
+      </div>
+      <p class="pix-code-label">Pix copia e cola</p>
+      <div class="pix-code-row">
+        <input type="text" id="pix-code-input" readonly value="">
+        <button type="button" class="pix-copy-btn" id="pix-copy-btn">Copiar</button>
+      </div>
+      <p class="pix-status" id="pix-status-text">Aguardando pagamento...</p>
+      <p class="pix-error" id="pix-error-text" hidden></p>
+    </div>
+
     <div class="footer">© <span id="year"></span> Madames Online. Todos os direitos reservados.</div>
   </div>
 
@@ -95,7 +111,14 @@
       downsellPrice: 9.95,
       mainCheckoutUrl: 'https://go.frendz.com.br/a9reeqwbim',
       downsellCheckoutUrl: 'https://go.frendz.com.br/ibeil',
-      nextUrl: '/upsell-iof/'
+      // PIX gerado direto na página via Cloud Function (não sai pro checkout
+      // hospedado). Se a função falhar, upsell-flow.js cai pro checkout acima.
+      pix: {
+        functionsBaseUrl: 'https://us-central1-madame-67e19.cloudfunctions.net',
+        mainChargeKey: 'saque_main',
+        downsellChargeKey: 'saque_downsell'
+      },
+      nextUrl: '/upsell-selo/'
     };
   </script>
   <script src="/js/upsell-flow.js"></script>
