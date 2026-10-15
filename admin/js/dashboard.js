@@ -653,7 +653,7 @@
                     }
                     if (event.action === 'complete') {
                         specific.checkout.completed++;
-                        const revenue = event.price || 27.00;
+                        const revenue = event.price || 19.98;
                         specific.checkout.totalRevenue += revenue;
 
                         // 🎯 Associa conversão ao source do paywall
@@ -778,10 +778,9 @@
         { key: 'backredirect', name: 'Backredirect (recuperação)', mainPrice: 14.90 },
         { key: 'backredirect2', name: 'Backredirect 2 (última chance)', mainPrice: 9.90 },
         { key: 'vitalicio', name: 'Vitalício', mainPrice: 14.70, downsellPrice: 7.35 },
-        { key: 'saque', name: 'Taxa de Saque', mainPrice: 17.00, downsellPrice: 9.95 },
-        { key: 'iof', name: 'Taxa de IOF', mainPrice: 21.78 },
-        { key: 'selo', name: 'Selo de Destaque', mainPrice: 15.00, downsellPrice: 12.45 },
-        { key: 'antecipacao', name: 'Antecipação de Saque', mainPrice: 17.90 }
+        { key: 'saque', name: 'Taxa de Saque', mainPrice: 19.90, downsellPrice: 9.95 },
+        { key: 'iof', name: 'Taxa de IOF', mainPrice: 23.49 },
+        { key: 'selo', name: 'Selo de Destaque', mainPrice: 24.90, downsellPrice: 12.45 }
     ];
 
     // Mapa preço (em reais, com 2 casas) -> etapa/nível, usado pra cruzar transações

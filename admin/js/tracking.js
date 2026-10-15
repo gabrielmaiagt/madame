@@ -476,7 +476,7 @@
       const event = createEvent('paywall', {
         action: action, // 'view', 'dismiss', 'click_checkout'
         source: source, // 'chat', 'match', 'recusa_tudo', 'premium_chat', 'gift_claim'
-        price: price || 27.00,
+        price: price || 19.98,
         user_balance: getUserBalance()
       });
       saveEvent(event);
@@ -487,7 +487,7 @@
       const event = createEvent('checkout', {
         action: action, // 'init', 'complete', 'abandon'
         source: source,
-        price: price || 27.00,
+        price: price || 19.98,
         user_balance: getUserBalance()
       });
       saveEvent(event);
@@ -739,9 +739,9 @@
             }
 
             // Detecção de visualização de Paywall (se aparecer um modal com preço ou "vip")
-            if (text.includes('r$ 27,00') || text.includes('acesso vip') || text.includes('premium')) {
+            if (text.includes('r$ 19,98') || text.includes('acesso vip') || text.includes('premium')) {
               if (node.id === 'paywall-modal' || node.classList.contains('fixed')) {
-                window.MadamesTracking.trackPaywall('view', 'modal_detect', 27.00);
+                window.MadamesTracking.trackPaywall('view', 'modal_detect', 19.98);
               }
             }
           }

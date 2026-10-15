@@ -7,8 +7,6 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const cors = require('cors')({ origin: true });
 const { defineSecret } = require('firebase-functions/params');
-const { onSchedule } = require('firebase-functions/v2/scheduler');
-const QRCode = require('qrcode');
 
 // Inicializa Firebase Admin
 admin.initializeApp();
@@ -17,184 +15,47 @@ const db = admin.firestore();
 // Token da API Frendz, guardado no Secret Manager (nunca no código nem no
 // bundle do site). Configurar com:
 //   firebase functions:secrets:set FRENDZ_API_TOKEN
-// Ainda usado só pelo checkout externo do ticket do front (não pelos upsells,
-// que migraram pra Omega).
 const frendzApiToken = defineSecret('FRENDZ_API_TOKEN');
-
-// Credenciais da API Omega, guardadas no Secret Manager. Configurar com:
-//   firebase functions:secrets:set OMEGA_PUBLIC_KEY
-//   firebase functions:secrets:set OMEGA_SECRET_KEY
-const omegaPublicKey = defineSecret('OMEGA_PUBLIC_KEY');
-const omegaSecretKey = defineSecret('OMEGA_SECRET_KEY');
-
-// Token da API de "Envio de Vendas" da Utmify, guardado no Secret Manager.
-// Configurar com:
-//   firebase functions:secrets:set UTMIFY_API_TOKEN
-// Isso é inteiramente separado da Omega: a Utmify não lê nada do gateway,
-// a venda é reportada direto pra API deles (POST /api-credentials/orders),
-// com as UTMs que a gente já guarda. Ver docs.utmify.com.br/envio-de-vendas.
-const utmifyApiToken = defineSecret('UTMIFY_API_TOKEN');
 
 // =====================
 // PIX ONE CLICK (upsells)
 // =====================
 
-const OMEGA_BASE_URL = 'https://app.omegapayments.com.br/api/v1';
-const OMEGA_WEBHOOK_URL = 'https://us-central1-madame-67e19.cloudfunctions.net/omegaWebhook';
+const FRENDZ_BASE_URL = 'https://api.frendz.com.br/api/public/v1';
 
 // Preço e identificação de cada oferta que usa PIX gerado direto na página
-// (sem redirecionar pro checkout hospedado). O valor cobrado sempre vem
-// daqui, nunca do que o cliente manda na requisição. Amount em centavos,
-// igual ao resto do projeto (tracking, admin); convertido pra reais só na
-// hora de montar o payload da Omega.
+// (sem redirecionar pro checkout hospedado da Frendz). O valor cobrado
+// sempre vem daqui, nunca do que o cliente manda na requisição.
 const PIX_CHARGES = {
-    front_main: { title: 'Acesso VIP', amount: 1998 },
-    iof_main: { title: 'Taxa de IOF', amount: 2349 },
-    saque_main: { title: 'Liberação de Saque', amount: 1990 },
-    saque_downsell: { title: 'Liberação de Saque (desconto)', amount: 995 },
-    selo_main: { title: 'Selo de Destaque', amount: 2490 },
-    selo_downsell: { title: 'Selo de Destaque (desconto)', amount: 1245 },
-    antecipacao_main: { title: 'Antecipação de Saque', amount: 1790 }
+    iof_main: { productHash: 'hha7uooi3x', offerHash: 'ukgihx3fvt', title: 'Taxa de IOF', amount: 2349 },
+    saque_main: { productHash: 'e2x0rqabne', offerHash: 'a9reeqwbim', title: 'Liberação de Saque', amount: 1990 },
+    saque_downsell: { productHash: 'e2x0rqabne', offerHash: 'ibeil', title: 'Liberação de Saque (desconto)', amount: 995 },
+    selo_main: { productHash: 'x5mpnyubmp', offerHash: '8whgzth5cp', title: 'Selo de Destaque', amount: 2490 },
+    selo_downsell: { productHash: 'x5mpnyubmp', offerHash: 'fhm9k', title: 'Selo de Destaque (desconto)', amount: 1245 }
 };
 
-// A Omega exige dados de cliente (nome, email, telefone, documento) pra
+// A Frendz exige dados de cliente (nome, email, telefone, documento) pra
 // criar a transação, mas o funil não coleta isso do lead antes do upsell.
 // Usa dados fictícios só pro formato passar na validação da API; o email
 // varia por transação pra não colapsar compradores diferentes no mesmo
-// registro de "usuário" no Firestore.
+// registro de "usuário" no webhook (que indexa por email).
 function mockCustomer() {
     const rand = Math.random().toString(36).slice(2, 10);
     return {
         name: 'Cliente Madames Online',
         email: `cliente.${rand}@madamesonline.com`,
-        phone: '(11) 99999-9999',
-        document: '091.157.510-31'
-    };
-}
-
-// O checkout do front (/checkout/) coleta os dados de verdade do lead antes
-// de gerar o PIX; os upsells continuam sem coletar nada e usam mockCustomer.
-// Valida no servidor pra nunca mandar pra Omega um dado visivelmente inválido
-// (ex: o cliente adulterando a requisição direto, sem passar pelo formulário).
-function resolveCustomer(rawCustomer) {
-    const c = rawCustomer || {};
-    const name = typeof c.name === 'string' ? c.name.trim() : '';
-    const email = typeof c.email === 'string' ? c.email.trim() : '';
-    const phone = typeof c.phone === 'string' ? c.phone.trim() : '';
-    const document = typeof c.document === 'string' ? c.document.trim() : '';
-
-    const validName = name.length >= 3;
-    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    const validPhone = phone.replace(/\D/g, '').length >= 10;
-    const validDocument = document.replace(/\D/g, '').length === 11;
-
-    // Cada campo é validado (e aproveitado) individualmente, não tudo-ou-nada:
-    // o checkout do front não coleta mais CPF, então o documento sempre cai
-    // pro mock, mas isso não pode jogar fora nome/email/telefone reais.
-    const mock = mockCustomer();
-    return {
-        name: validName ? name : mock.name,
-        email: validEmail ? email : mock.email,
-        phone: validPhone ? phone : mock.phone,
-        document: validDocument ? document : mock.document,
-        isReal: validName && validEmail && validPhone
-    };
-}
-
-// Formata uma data em UTC 0 no formato "YYYY-MM-DD HH:MM:SS" exigido pela
-// Utmify. new Date().toISOString() já é UTC, só troca o "T" por espaço e
-// corta os milissegundos/Z.
-function utmifyTimestamp(date) {
-    return (date || new Date()).toISOString().slice(0, 19).replace('T', ' ');
-}
-
-/**
- * Reporta uma venda pra API de "Envio de Vendas" da Utmify
- * (docs.utmify.com.br/envio-de-vendas). Não tem nenhuma relação com a Omega:
- * é um envio direto, nosso, com as UTMs que a gente mesmo guarda. Chamado na
- * criação do PIX (status waiting_payment) e de novo quando o status mudar
- * (paid/refused/refunded/chargedback), sempre com o mesmo orderId e createdAt.
- * Nunca deixa uma falha aqui derrubar o fluxo principal (PIX pro cliente).
- */
-// Devolve true/false (nunca lança) pra quem chama poder marcar no Firestore
-// se esse envio específico deu certo ou ficou pendente de reconciliação.
-async function sendToUtmify(order) {
-    try {
-        const token = utmifyApiToken.value();
-        if (!token) return false;
-
-        const res = await fetch('https://api.utmify.com.br/api-credentials/orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-token': token },
-            body: JSON.stringify(order)
-        });
-
-        if (!res.ok) {
-            const body = await res.text();
-            console.error('Utmify recusou o envio:', res.status, body.substring(0, 300));
-            return false;
-        }
-        return true;
-    } catch (error) {
-        console.error('Erro ao enviar venda pra Utmify:', error);
-        return false;
-    }
-}
-
-/**
- * Monta o payload padrão de "order" da Utmify a partir dos dados já
- * guardados no Firestore pra essa transação (gravados no createPixCharge,
- * complementados pelo webhook quando pago).
- */
-function buildUtmifyOrder(data, status) {
-    return {
-        orderId: data.transaction_id,
-        platform: 'MadamesOnline',
-        paymentMethod: 'pix',
-        status,
-        createdAt: data.utmify_created_at,
-        approvedDate: status === 'paid' ? utmifyTimestamp() : null,
-        refundedAt: status === 'refunded' || status === 'chargedback' ? utmifyTimestamp() : null,
-        customer: {
-            name: data.customer_name || 'Cliente Madames Online',
-            email: data.customer_email || 'contato@madamesonline.com',
-            phone: (data.customer_phone || '').replace(/\D/g, '') || null,
-            document: (data.customer_document || '').replace(/\D/g, '') || null,
-            country: 'BR'
-        },
-        products: [{
-            id: data.offer_hash,
-            name: data.offer_title,
-            planId: null,
-            planName: null,
-            quantity: 1,
-            priceInCents: data.amount
-        }],
-        trackingParameters: {
-            src: data.src || null,
-            sck: null,
-            utm_source: data.utm_source || null,
-            utm_campaign: data.utm_campaign || null,
-            utm_medium: data.utm_medium || null,
-            utm_content: data.utm_content || null,
-            utm_term: data.utm_term || null
-        },
-        commission: {
-            totalPriceInCents: data.amount,
-            gatewayFeeInCents: data.amount - data.net_amount,
-            userCommissionInCents: data.net_amount
-        },
-        isTest: false
+        phone_number: '11999999999',
+        document: '09115751031'
     };
 }
 
 /**
  * Endpoint: POST /createPixCharge
- * Cria uma transação PIX na Omega e devolve o QR code + código copia-e-cola
+ * Cria uma transação PIX na Frendz e devolve o QR code + código copia-e-cola
  * direto pra página, sem sair do funil.
  * Body: { chargeKey: 'iof_main' | 'saque_main' | ..., tracking?: {...utms} }
  */
-exports.createPixCharge = functions.https.onRequest({ secrets: [omegaPublicKey, omegaSecretKey, utmifyApiToken] }, (req, res) => {
+exports.createPixCharge = functions.https.onRequest({ secrets: [frendzApiToken] }, (req, res) => {
     cors(req, res, async () => {
         if (req.method !== 'POST') {
             return res.status(405).json({ error: 'Method not allowed' });
@@ -208,99 +69,56 @@ exports.createPixCharge = functions.https.onRequest({ secrets: [omegaPublicKey, 
             }
 
             const tracking = (req.body && req.body.tracking) || {};
-            const amountReais = charge.amount / 100;
-            const identifier = `${chargeKey}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-            const customer = resolveCustomer(req.body && req.body.customer);
 
             const payload = {
-                identifier,
-                amount: amountReais,
-                client: { name: customer.name, email: customer.email, phone: customer.phone, document: customer.document },
-                products: [{ id: chargeKey, name: charge.title, quantity: 1, price: amountReais }],
-                callbackUrl: OMEGA_WEBHOOK_URL
+                amount: charge.amount,
+                offer_hash: charge.offerHash,
+                payment_method: 'pix',
+                customer: mockCustomer(),
+                cart: [{
+                    product_hash: charge.productHash,
+                    title: charge.title,
+                    cover: null,
+                    price: charge.amount,
+                    quantity: 1,
+                    operation_type: 1,
+                    tangible: false
+                }],
+                expire_in_days: 1,
+                transaction_origin: 'api',
+                // Sem isso a Frendz não avisa ninguém quando o PIX é pago: a venda
+                // nunca cairia na coleção transactions e sumiria das métricas do admin.
+                postback_url: 'https://us-central1-madame-67e19.cloudfunctions.net/paymentWebhook',
+                tracking: {
+                    src: tracking.src || '',
+                    utm_source: tracking.utm_source || '',
+                    utm_medium: tracking.utm_medium || '',
+                    utm_campaign: tracking.utm_campaign || '',
+                    utm_term: tracking.utm_term || '',
+                    utm_content: tracking.utm_content || ''
+                }
             };
 
-            const omegaRes = await fetch(`${OMEGA_BASE_URL}/gateway/pix/receive`, {
+            const frendzRes = await fetch(`${FRENDZ_BASE_URL}/transactions?api_token=${frendzApiToken.value()}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-public-key': omegaPublicKey.value(),
-                    'x-secret-key': omegaSecretKey.value()
-                },
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            const data = await omegaRes.json();
+            const data = await frendzRes.json();
 
-            if (!omegaRes.ok || !data.transactionId || !data.pix) {
-                console.error('Omega createPixCharge falhou:', omegaRes.status, JSON.stringify(data).substring(0, 500));
-                return res.status(omegaRes.status || 500).json({ error: 'omega_error' });
-            }
-
-            // A Omega não devolve QR code em imagem/base64 pronto (só o código
-            // copia-e-cola), então gera o PNG aqui mesmo pra manter a mesma
-            // interface que a página já espera (um src de imagem usável direto).
-            const qrCodeDataUri = await QRCode.toDataURL(data.pix.code, { width: 280, margin: 1 });
-
-            const netAmountCents = Math.round((amountReais - (data.fee || 0)) * 100);
-            const utmifyCreatedAt = utmifyTimestamp();
-
-            // Grava já aqui a atribuição completa (UTMs, valor, etapa do funil):
-            // o webhook da Omega não ecoa de volta tracking de transações criadas
-            // via API (só em vendas pelo checkout hospedado deles), então é aqui
-            // que garantimos que a venda não fique "órfã" de UTM quando for paga.
-            const transactionDoc = cleanUndefined({
-                transaction_id: data.transactionId,
-                gateway: 'omega',
-                gateway_status: 'PENDING',
-                internal_status: 'checkout_initiated',
-                method: 'pix',
-                amount: charge.amount,
-                net_amount: netAmountCents,
-                amount_formatted: `R$ ${amountReais.toFixed(2).replace('.', ',')}`,
-                offer_hash: chargeKey,
-                offer_title: charge.title,
-                offer_price: charge.amount,
-                customer_name: customer.name,
-                customer_email: customer.email,
-                customer_phone: customer.phone,
-                customer_document: customer.document,
-                pix_code: data.pix.code,
-                pix_url: null,
-                utm_source: tracking.utm_source || null,
-                utm_medium: tracking.utm_medium || null,
-                utm_campaign: tracking.utm_campaign || null,
-                utm_term: tracking.utm_term || null,
-                utm_content: tracking.utm_content || null,
-                src: tracking.src || null,
-                created_at: admin.firestore.FieldValue.serverTimestamp(),
-                gateway_created_at: new Date().toISOString(),
-                utmify_created_at: utmifyCreatedAt,
-                paid_at: null,
-                refund_at: null,
-                is_conversion: false,
-                is_pix: true,
-                is_pending: true,
-                // Fica false até a Utmify confirmar o recebimento. A function
-                // reconcileUtmify (agendada) reenvia o que ficar pendente, pra
-                // uma falha na chamada não significar perder a venda pra sempre.
-                utmify_synced: false,
-                utmify_last_status: 'waiting_payment'
-            });
-            await db.collection('transactions').doc(data.transactionId).set(transactionDoc);
-
-            // Reporta a venda pra Utmify como "gerada" (waiting_payment). Não
-            // depende da Omega em nada; se falhar, não trava o PIX do cliente
-            // (fica marcada como pendente pra reconcileUtmify tentar de novo).
-            const syncedNow = await sendToUtmify(buildUtmifyOrder(transactionDoc, 'waiting_payment'));
-            if (syncedNow) {
-                await db.collection('transactions').doc(data.transactionId).update({ utmify_synced: true });
+            // A resposta real da Frendz não segue o formato documentado
+            // ({success, data: {...}}): os campos vêm direto na raiz, e o
+            // QR code é uma URL de imagem (data.pix.pix_url), não base64.
+            if (!frendzRes.ok || !data.hash || !data.pix) {
+                console.error('Frendz createPixCharge falhou:', frendzRes.status, JSON.stringify(data).substring(0, 500));
+                return res.status(frendzRes.status || 500).json({ error: 'frendz_error' });
             }
 
             return res.status(200).json({
                 success: true,
-                hash: data.transactionId,
-                qr_code: qrCodeDataUri,
-                pix_code: data.pix.code,
+                hash: data.hash,
+                qr_code: data.pix.pix_url,
+                pix_code: data.pix.pix_qr_code,
                 amount: charge.amount
             });
         } catch (error) {
@@ -312,11 +130,11 @@ exports.createPixCharge = functions.https.onRequest({ secrets: [omegaPublicKey, 
 
 /**
  * Endpoint: GET/POST /checkPixStatus?hash=...
- * Consulta o status atual de uma transação PIX na Omega (proxy, pra não
- * expor as chaves no navegador). Usado pela página de upsell pra fazer
+ * Consulta o status atual de uma transação PIX na Frendz (proxy, pra não
+ * expor o api_token no navegador). Usado pela página de upsell pra fazer
  * polling até o pagamento confirmar.
  */
-exports.checkPixStatus = functions.https.onRequest({ secrets: [omegaPublicKey, omegaSecretKey] }, (req, res) => {
+exports.checkPixStatus = functions.https.onRequest({ secrets: [frendzApiToken] }, (req, res) => {
     cors(req, res, async () => {
         if (req.method !== 'GET' && req.method !== 'POST') {
             return res.status(405).json({ error: 'Method not allowed' });
@@ -328,154 +146,26 @@ exports.checkPixStatus = functions.https.onRequest({ secrets: [omegaPublicKey, o
                 return res.status(400).json({ error: 'missing_hash' });
             }
 
-            const omegaRes = await fetch(`${OMEGA_BASE_URL}/gateway/transactions?id=${encodeURIComponent(hash)}`, {
-                headers: {
-                    'x-public-key': omegaPublicKey.value(),
-                    'x-secret-key': omegaSecretKey.value()
-                }
+            const frendzRes = await fetch(`${FRENDZ_BASE_URL}/transactions/${encodeURIComponent(hash)}?api_token=${frendzApiToken.value()}`, {
+                headers: { Accept: 'application/json' }
             });
-            const data = await omegaRes.json();
+            const data = await frendzRes.json();
 
-            if (!omegaRes.ok) {
-                return res.status(omegaRes.status).json({ error: 'omega_error' });
+            if (!frendzRes.ok) {
+                return res.status(frendzRes.status).json({ error: 'frendz_error' });
             }
 
-            // Valores possíveis: PENDING, COMPLETED, FAILED, REFUNDED, CHARGED_BACK.
+            // Campo real é payment_status (ex: waiting_payment, paid, refused,
+            // cancelled, refunded, chargeback), não "status" como a doc mostrava.
             return res.status(200).json({
                 success: true,
-                status: data.status || null
+                status: data.payment_status || null
             });
         } catch (error) {
             console.error('Erro em checkPixStatus:', error);
             return res.status(500).json({ error: 'internal_error' });
         }
     });
-});
-
-/**
- * Endpoint: POST /omegaWebhook
- * Recebe eventos de transação da Omega (upsells com PIX one click).
- * Eventos: TRANSACTION_CREATED, TRANSACTION_PAID, TRANSACTION_CANCELED,
- * TRANSACTION_REFUNDED, TRANSACTION_CHARGED_BACK.
- * A atribuição (UTMs/valor/etapa) já foi gravada no createPixCharge; aqui só
- * atualiza o status, sem sobrescrever o resto (merge).
- */
-exports.omegaWebhook = functions.https.onRequest({ secrets: [utmifyApiToken] }, (req, res) => {
-    cors(req, res, async () => {
-        if (req.method !== 'POST') {
-            return res.status(405).json({ error: 'Method not allowed' });
-        }
-
-        try {
-            const payload = req.body || {};
-            console.log('📦 Webhook Omega recebido:', JSON.stringify(payload).substring(0, 500));
-
-            const transaction = payload.transaction || {};
-            const client = payload.client || {};
-            const eventStatusMap = {
-                TRANSACTION_CREATED: 'checkout_initiated',
-                TRANSACTION_PAID: 'checkout_completed',
-                TRANSACTION_CANCELED: 'checkout_cancelled',
-                TRANSACTION_REFUNDED: 'checkout_refunded',
-                TRANSACTION_CHARGED_BACK: 'checkout_chargeback'
-            };
-            const internalStatus = eventStatusMap[payload.event] || null;
-            const docId = transaction.id;
-
-            if (!docId) {
-                console.error('Webhook Omega sem transaction.id, ignorando:', JSON.stringify(payload).substring(0, 300));
-                return res.status(200).json({ success: true, ignored: true });
-            }
-
-            // client.name/email/etc podem vir ausentes no webhook (a Omega só
-            // preenche isso de verdade em vendas pelo checkout hospedado). Usa
-            // undefined (removido pelo cleanUndefined) em vez de null, pra não
-            // sobrescrever com nada os dados reais já gravados no createPixCharge.
-            const updateData = cleanUndefined({
-                transaction_id: docId,
-                gateway: 'omega',
-                gateway_status: transaction.status || null,
-                internal_status: internalStatus || undefined,
-                method: 'pix',
-                customer_name: client.name || undefined,
-                customer_email: client.email || undefined,
-                customer_phone: client.phone || undefined,
-                customer_document: client.cpf || client.cnpj || undefined,
-                paid_at: transaction.payedAt || (payload.event === 'TRANSACTION_PAID' ? new Date().toISOString() : null),
-                is_conversion: payload.event === 'TRANSACTION_PAID',
-                is_pending: transaction.status === 'PENDING'
-            });
-
-            await db.collection('transactions').doc(docId).set(updateData, { merge: true });
-            console.log('💳 Transação Omega atualizada:', docId, payload.event);
-
-            // Reporta a mudança de status pra Utmify (paid/refused/refunded/
-            // chargedback), reaproveitando o mesmo orderId e createdAt do envio
-            // original. TRANSACTION_CREATED não entra aqui: já foi reportado
-            // como waiting_payment direto no createPixCharge.
-            const utmifyStatusMap = {
-                TRANSACTION_PAID: 'paid',
-                TRANSACTION_CANCELED: 'refused',
-                TRANSACTION_REFUNDED: 'refunded',
-                TRANSACTION_CHARGED_BACK: 'chargedback'
-            };
-            const utmifyStatus = utmifyStatusMap[payload.event];
-
-            if (utmifyStatus) {
-                const snap = await db.collection('transactions').doc(docId).get();
-                const full = snap.data() || {};
-                const syncedNow = await sendToUtmify(buildUtmifyOrder(full, utmifyStatus));
-                await db.collection('transactions').doc(docId).update({
-                    utmify_synced: syncedNow,
-                    utmify_last_status: utmifyStatus
-                });
-
-                if (payload.event === 'TRANSACTION_PAID') {
-                    await saveConversionEvent(full);
-                    await saveCheckoutCompletionTracking(full);
-                }
-            }
-
-            return res.status(200).json({ success: true });
-        } catch (error) {
-            console.error('Erro em omegaWebhook:', error);
-            return res.status(500).json({ error: 'internal_error' });
-        }
-    });
-});
-
-/**
- * Agendada: roda a cada 30 minutos.
- * Reenvia pra Utmify qualquer transação marcada como utmify_synced=false
- * (a chamada original falhou por algum motivo: Utmify fora do ar, rate
- * limit, etc). Sem isso, uma falha pontual na chamada à Utmify perderia a
- * atribuição daquela venda pra sempre, mesmo com a venda em si intacta na
- * Omega e no nosso Firestore. A Utmify só aceita pedidos de até 7 dias.
- */
-exports.reconcileUtmify = onSchedule({ schedule: 'every 30 minutes', secrets: [utmifyApiToken] }, async () => {
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const snap = await db.collection('transactions')
-        .where('utmify_synced', '==', false)
-        .limit(100)
-        .get();
-
-    let resent = 0;
-    let skipped = 0;
-    for (const doc of snap.docs) {
-        const data = doc.data();
-        const createdAtDate = data.created_at && data.created_at.toDate ? data.created_at.toDate() : null;
-        if (createdAtDate && createdAtDate < sevenDaysAgo) {
-            skipped++;
-            continue;
-        }
-        const status = data.utmify_last_status || 'waiting_payment';
-        const synced = await sendToUtmify(buildUtmifyOrder(data, status));
-        if (synced) {
-            await doc.ref.update({ utmify_synced: true });
-            resent++;
-        }
-    }
-    console.log(`🔁 reconcileUtmify: ${resent} reenviadas, ${skipped} fora do prazo de 7 dias, ${snap.size - resent - skipped} ainda pendentes.`);
 });
 
 // =====================

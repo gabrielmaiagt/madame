@@ -73,15 +73,11 @@
     // Só existe nas páginas que declaram cfg.pix e têm o painel no HTML.
     var pixPanel = document.getElementById('pix-panel');
     var pixQrImg = document.getElementById('pix-qr-img');
-    var pixQrBox = document.getElementById('pix-qr-box');
     var pixCodeInput = document.getElementById('pix-code-input');
-    var pixCodeRow = document.getElementById('pix-code-row');
     var pixCopyBtn = document.getElementById('pix-copy-btn');
-    var pixCopiedFeedback = document.getElementById('pix-copied-feedback');
     var pixStatusText = document.getElementById('pix-status-text');
     var pixErrorText = document.getElementById('pix-error-text');
     var pixPollTimer = null;
-    var pixCopiedFeedbackTimer = null;
 
     function trackingPayload() {
       var params = new URLSearchParams(checkoutQueryString());
@@ -105,11 +101,10 @@
     function pollPixStatus(hash, price, action) {
       stopPixPolling();
       pixPollTimer = setInterval(function () {
-        fetch('/api/check-pix-status.php?hash=' + encodeURIComponent(hash))
+        fetch(cfg.pix.functionsBaseUrl + '/checkPixStatus?hash=' + encodeURIComponent(hash))
           .then(function (r) { return r.json(); })
           .then(function (data) {
-            // check-pix-status.php normaliza o status do gateway pra esse enum.
-            if (data && data.status === 'COMPLETED') {
+            if (data && data.status === 'paid') {
               stopPixPolling();
               if (pixStatusText) pixStatusText.textContent = 'Pagamento confirmado! Redirecionando...';
               if (window.MadamesTracking) {
@@ -118,7 +113,7 @@
               setTimeout(function () {
                 window.location.href = cfg.nextUrl + checkoutQueryString();
               }, 1200);
-            } else if (data && (data.status === 'FAILED' || data.status === 'REFUNDED' || data.status === 'CHARGED_BACK')) {
+            } else if (data && (data.status === 'cancelled' || data.status === 'refused' || data.status === 'refunded' || data.status === 'chargeback')) {
               stopPixPolling();
               if (pixStatusText) pixStatusText.textContent = 'Esse PIX não foi aprovado. Recarregue a página pra gerar outro.';
             }
@@ -131,7 +126,7 @@
 
     function startPixCheckout(chargeKey, price, action, button) {
       var fallbackUrl = action === 'accept_downsell' ? cfg.downsellCheckoutUrl : cfg.mainCheckoutUrl;
-      if (!chargeKey || !pixPanel || !cfg.pix) {
+      if (!chargeKey || !pixPanel || !cfg.pix || !cfg.pix.functionsBaseUrl) {
         goToCheckout(fallbackUrl, price, action);
         return;
       }
@@ -148,7 +143,7 @@
         button.setAttribute('disabled', '');
       }
 
-      fetch('/api/create-pix.php', {
+      fetch(cfg.pix.functionsBaseUrl + '/createPixCharge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chargeKey: chargeKey, tracking: trackingPayload() })
@@ -179,38 +174,26 @@
         });
     }
 
-    function copyPixCode() {
-      if (!pixCodeInput || !pixCodeInput.value) return;
-      pixCodeInput.focus();
-      pixCodeInput.select();
-      pixCodeInput.setSelectionRange(0, 99999);
-      var copied = false;
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(pixCodeInput.value);
-          copied = true;
+    if (pixCopyBtn && pixCodeInput) {
+      pixCopyBtn.addEventListener('click', function () {
+        pixCodeInput.focus();
+        pixCodeInput.select();
+        pixCodeInput.setSelectionRange(0, 99999);
+        var copied = false;
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(pixCodeInput.value);
+            copied = true;
+          }
+        } catch (e) { /* segue pro fallback abaixo */ }
+        if (!copied) {
+          try { document.execCommand('copy'); } catch (e) { /* nada mais a fazer */ }
         }
-      } catch (e) { /* segue pro fallback abaixo */ }
-      if (!copied) {
-        try { document.execCommand('copy'); } catch (e) { /* nada mais a fazer */ }
-      }
-      if (pixCopyBtn) {
         var original = pixCopyBtn.textContent;
         pixCopyBtn.textContent = 'Copiado!';
         setTimeout(function () { pixCopyBtn.textContent = original; }, 2000);
-      }
-      if (pixCopiedFeedback) {
-        pixCopiedFeedback.hidden = false;
-        clearTimeout(pixCopiedFeedbackTimer);
-        pixCopiedFeedbackTimer = setTimeout(function () { pixCopiedFeedback.hidden = true; }, 2000);
-      }
+      });
     }
-
-    // Clicar em qualquer parte do QR ou do campo do código também copia, não
-    // só o botão "Copiar" — facilita quem não presta atenção no botão.
-    if (pixCopyBtn) pixCopyBtn.addEventListener('click', copyPixCode);
-    if (pixQrBox) pixQrBox.addEventListener('click', copyPixCode);
-    if (pixCodeRow) pixCodeRow.addEventListener('click', copyPixCode);
 
     function showDownsell(source) {
       if (!downsellOffer) return;
