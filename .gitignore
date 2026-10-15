@@ -5,3 +5,8 @@ node_modules/
 *.log
 .firebase/
 firebase-debug.log
+
+# Credenciais reais da API de pagamento (Frendz/Utmify) e dados locais de
+# transações de teste — nunca sobem pro git, cada ambiente configura o seu.
+api/frendz-config.php
+api/data/

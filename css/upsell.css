@@ -542,6 +542,7 @@ h1 span {
   border: 1px solid rgba(55, 65, 81, 0.6);
   border-radius: 14px;
   padding: 16px 18px;
+  margin-top: 20px;
   margin-bottom: 16px;
 }
 
@@ -561,6 +562,10 @@ h1 span {
 
 .receipt-negative {
   color: #fca5a5;
+}
+
+.receipt-positive {
+  color: #4ade80;
 }
 
 .receipt-divider {
@@ -629,6 +634,7 @@ h1 span {
   padding: 14px;
   display: inline-block;
   margin: 0 auto 20px;
+  cursor: pointer;
 }
 
 .pix-qr-box img {
@@ -650,6 +656,7 @@ h1 span {
   display: flex;
   gap: 8px;
   margin-bottom: 20px;
+  cursor: pointer;
 }
 
 .pix-code-row input {
@@ -695,6 +702,22 @@ h1 span {
   animation: pix-pulse 1.4s ease-in-out infinite;
 }
 
+.pix-copied-feedback {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #4ade80;
+  margin: -12px 0 16px;
+}
+
+.pix-fraud-note {
+  font-size: 0.75rem;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 14px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid rgba(55, 65, 81, 0.5);
+}
+
 .pix-error {
   font-size: 0.85rem;
   color: #fca5a5;
@@ -704,4 +727,209 @@ h1 span {
 @keyframes pix-pulse {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
+}
+
+/* Faixa de urgência no topo da página (fora do .wrap, largura cheia) */
+.urgency-banner {
+  background: #000;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-align: center;
+  line-height: 1.5;
+  padding: 10px 16px;
+}
+
+/* Bloco "saldo/valor + status" no topo da oferta, com divisor embaixo */
+.status-block {
+  text-align: center;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.status-label {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.status-value {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.status-heading {
+  font-size: 1.3rem;
+  font-weight: 800;
+  font-style: italic;
+  margin: 4px 0 6px;
+  color: #fff;
+}
+
+.status-subtitle {
+  font-size: 0.85rem;
+  color: #9ca3af;
+  margin: 0 0 18px;
+}
+
+.clock-icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+  border: 3px solid #fbbf24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clock-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.priority-tag {
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #fbbf24;
+  margin: 0 0 18px;
+}
+
+/* Caixa de destaque do bônus, com borda de acento à esquerda */
+.bonus-highlight-box {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: rgba(245, 158, 11, 0.08);
+  border-left: 3px solid #f59e0b;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 0 0 20px;
+  font-size: 0.88rem;
+  color: #e5e7eb;
+  line-height: 1.5;
+}
+
+.bonus-highlight-box strong {
+  color: #fff;
+}
+
+.cta-subtitle {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  opacity: 0.85;
+  margin-top: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Pílula 999px fica estranha (parece cápsula) num botão de duas linhas.
+   Cantos mais discretos só quando o CTA carrega um subtítulo dentro. */
+.cta:has(.cta-subtitle) {
+  border-radius: 16px;
+  padding: 14px 17px;
+}
+
+.receipt-badge {
+  display: block;
+  width: fit-content;
+  margin: 12px auto 0;
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 5px 12px;
+  border-radius: 999px;
+}
+
+.receipt-label-italic {
+  font-style: italic;
+}
+
+/* Caixa de destaque do valor total dentro do resumo, na mesma paleta
+   escura do site (mais escura que o card ao redor, pra dar contraste). */
+.receipt-total-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 18px;
+  text-align: center;
+  margin-top: 14px;
+}
+
+.receipt-total-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9ca3af;
+  margin-bottom: 8px;
+}
+
+.receipt-total-value {
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: #4ade80;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.receipt-total-box .receipt-badge {
+  background: rgba(255, 255, 255, 0.08);
+  color: #4ade80;
+  margin: 0;
+}
+
+/* Card escuro de confirmação/segurança, mais claro que o fundo da página */
+.secure-badge-card {
+  background: rgba(31, 41, 55, 0.6);
+  border: 1px solid rgba(55, 65, 81, 0.6);
+  border-radius: 14px;
+  padding: 20px;
+  text-align: center;
+  margin: 20px 0;
+}
+
+.secure-badge-label {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.secure-badge-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 10px 0 4px;
+}
+
+.secure-badge-subtitle {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0 0 12px;
+}
+
+.secure-badge-note {
+  font-size: 0.78rem;
+  color: #6b7280;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 12px;
+  margin: 0;
 }

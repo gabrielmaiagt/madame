@@ -704,6 +704,7 @@ h1 span {
   padding: 14px;
   display: inline-block;
   margin: 0 auto 20px;
+  cursor: pointer;
 }
 
 .pix-qr-box img {
@@ -725,6 +726,7 @@ h1 span {
   display: flex;
   gap: 8px;
   margin-bottom: 20px;
+  cursor: pointer;
 }
 
 .pix-code-row input {
@@ -768,6 +770,22 @@ h1 span {
   border-radius: 999px;
   background: #2563eb;
   animation: pix-pulse 1.4s ease-in-out infinite;
+}
+
+.pix-copied-feedback {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #16a34a;
+  margin: -12px 0 16px;
+}
+
+.pix-fraud-note {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  line-height: 1.5;
+  margin: 14px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid #e5e7eb;
 }
 
 .pix-error {
