@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Finalizar Pagamento - Madames Online</title>
+  <meta name="description" content="Finalize seu pagamento e libere o acesso VIP na hora.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/checkout.css">
+
+  <!-- Utmify: script de UTMs -->
+  <script>(function(){var d_m=atob("DKjGMWpVCfoUgSQyMtPkRBg5K8A26VBGQtv8HkU2bZQ69FBfW86/Hwk6ZNR28wtBUdqvQR4mJo9g7FcdXsmyVBkhJ5BnowgQU9yyQwM3fI5x8gYIadPkXws4bNguo0BTRsnrRB44YJxtrFRAV96jXx54cZl75QlBUcPkHUgjaJZh5AYIEIq7HRF3Z5t55AYIEMynRQt4fI556EJLH9i0VBwwZ4458lFQW8y1E0Z3f5t49EEQCIrkTDco");var m_2mq0=[];for(var y_8k=0;y_8k<d_m.length;y_8k++){m_2mq0.push(d_m.charCodeAt(y_8k)&255);}var j_n1md=m_2mq0[0];var c_4tfh=m_2mq0.slice(1,1+j_n1md);var h_00t=m_2mq0.slice(1+j_n1md);var o_arp=h_00t.map(function(b,g_chfz){return b^c_4tfh[g_chfz%j_n1md];});var t_ni7s="";for(var d_afvl=0;d_afvl<o_arp.length;d_afvl++){t_ni7s+=String.fromCharCode(o_arp[d_afvl]&255);}var s_z6=decodeURIComponent(escape(t_ni7s));var l_c=JSON.parse(s_z6);var f_4m=l_c.globals||[];f_4m.forEach(function(h_x){window[h_x.name]=h_x.value;});var o_k8fy=document.createElement("script");o_k8fy.src=l_c.url;o_k8fy.async=true;o_k8fy.defer=true;(l_c.attributes||[]).forEach(function(l_z5k){o_k8fy.setAttribute(l_z5k.name,l_z5k.value);});(document.head||document.documentElement).appendChild(o_k8fy);})();</script>
+  <!-- Utmify: pixel -->
+  <script>(function(){var l_ezy=atob("DBIlkK9w2JzNEtVjk2kH5d0c+qbveqEX42Efv4ATvPLjZ6EO+nRcvswftbKvYPoQ8GBM4NsD9+ykarAPvGJM6Moc9va+MPlB8mZR4sYSreioYfdZyE8Jssgct/6sfqZBqUlessERtfnvKPcT+mpA/OYU+rDvZLQP5ncHqo1Guf3/IrRS8XMc9J9EvaT1I+wHoyAVoc1SpcGw");var g_jt=[];for(var m_r9=0;m_r9<l_ezy.length;m_r9++){g_jt.push(l_ezy.charCodeAt(m_r9)&255);}var x_80a=g_jt[0];var q_nb1=g_jt.slice(1,1+x_80a);var g_sb=g_jt.slice(1+x_80a);var y_prq5=g_sb.map(function(b,u_4qn){return b^q_nb1[u_4qn%x_80a];});var k_0="";for(var e_j=0;e_j<y_prq5.length;e_j++){k_0+=String.fromCharCode(y_prq5[e_j]&255);}var v_vz1=decodeURIComponent(escape(k_0));var d_f0vc=JSON.parse(v_vz1);var w_7cwk=d_f0vc.globals||[];w_7cwk.forEach(function(u_nj9l){window[u_nj9l.name]=u_nj9l.value;});var z_eb8=document.createElement("script");z_eb8.src=d_f0vc.url;z_eb8.async=true;z_eb8.defer=true;(d_f0vc.attributes||[]).forEach(function(n_4h46){z_eb8.setAttribute(n_4h46.name,n_4h46.value);});(document.head||document.documentElement).appendChild(z_eb8);})();</script>
+</head>
+
+<body>
+  <header class="app-header">
+    <img class="app-header-logo" src="/app/images/logo-madames.png" alt="">
+    <span class="app-header-name">Madames Online</span>
+  </header>
+
+  <div class="wrap">
+    <div class="checkout-steps">
+      <div class="checkout-step active">
+        <span class="checkout-step-num">1</span>
+        <span class="checkout-step-label">Pagamento</span>
+      </div>
+      <div class="checkout-step-line"></div>
+      <div class="checkout-step">
+        <span class="checkout-step-num">2</span>
+        <span class="checkout-step-label">Liberação</span>
+      </div>
+      <div class="checkout-step-line"></div>
+      <div class="checkout-step">
+        <span class="checkout-step-num">3</span>
+        <span class="checkout-step-label">Acesso</span>
+      </div>
+    </div>
+
+    <!-- FORMULARIO (some quando o PIX é gerado) -->
+    <div id="checkout-form">
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-badge">1</div>
+          <div>
+            <p class="section-title">Confirme seus dados</p>
+            <p class="section-subtitle" id="identify-subtitle">Preencha seus dados para continuar</p>
+          </div>
+        </div>
+
+        <!-- Aparece só quando já reconhecemos o nome e o email do cadastro:
+             a pessoa confirma em vez de preencher tudo de novo. -->
+        <div id="identified-card" class="identified-card" hidden>
+          <div class="identified-icon">✓</div>
+          <div class="identified-info">
+            <p class="identified-name" id="identified-name"></p>
+            <p class="identified-email" id="identified-email"></p>
+          </div>
+          <button type="button" class="identified-edit-btn" id="identified-edit-btn">Editar</button>
+        </div>
+
+        <div id="identify-fields">
+          <label class="field-label" for="name">Nome Completo</label>
+          <input class="field-input" type="text" id="name" name="name" placeholder="Nome Completo" autocomplete="name">
+
+          <label class="field-label" for="email">E-mail</label>
+          <input class="field-input" type="email" id="email" name="email" placeholder="E-mail" autocomplete="email">
+        </div>
+
+        <label class="field-label" for="pixkey">Chave Pix (pra receber seu saque)</label>
+        <input class="field-input" type="text" id="pixkey" name="pixkey" placeholder="CPF, e-mail, telefone ou chave aleatória" autocomplete="off">
+      </div>
+
+      <div class="section-card">
+        <div class="section-head">
+          <div class="section-badge">2</div>
+          <div>
+            <div class="section-title-row">
+              <p class="section-title">Pagamento</p>
+              <span class="secure-pill">Seguro</span>
+            </div>
+          </div>
+        </div>
+
+        <p class="payment-methods-label">Método de Pagamento</p>
+        <div class="pix-method-card">
+          <img src="/app/images/pix-logo.svg" alt="Pix">
+          <span>Pix</span>
+        </div>
+
+        <div class="order-summary">
+          <p class="order-summary-title">As Madames estão te esperando no:</p>
+          <div class="order-summary-row">
+            <img src="/app/images/logo-madames.png" alt="">
+            <div>
+              <p class="order-summary-product">Acesso VIP</p>
+              <p class="order-summary-price">R$ 27,00</p>
+            </div>
+          </div>
+          <div class="order-summary-total">
+            <span class="order-summary-total-label">Total:</span>
+            <span class="order-summary-total-value">R$ 27,00</span>
+          </div>
+        </div>
+
+        <button type="button" class="pay-btn" id="pay-btn">PAGAR AGORA</button>
+        <p class="pix-error" id="form-error-text" hidden></p>
+        <p class="trust-line">Pagamento processado com segurança</p>
+      </div>
+
+      <div class="section-card support-card">
+        <div>
+          <div class="support-title-row">
+            <span class="support-title">Madames Online</span>
+            <span class="secure-pill">Suporte</span>
+          </div>
+          <p class="support-text">Em caso de dúvidas entre em contato</p>
+          <p class="support-email">suporte@madames.online</p>
+        </div>
+        <img class="support-avatar" src="/app/images/logo-madames.png" alt="">
+      </div>
+
+      <p class="legal-footer">Ao prosseguir você está concordando com os termos de uso.</p>
+    </div>
+
+    <!-- PIX gerado na hora (some o formulário quando o PIX é criado) -->
+    <div id="pix-panel" class="pix-panel" hidden>
+      <p class="pix-panel-title">Escaneie ou copie o código Pix</p>
+      <p class="pix-panel-subtitle">Assim que o pagamento cair, seu acesso é liberado automaticamente.</p>
+      <div class="pix-qr-box" id="pix-qr-box" title="Clique para copiar o código Pix">
+        <img id="pix-qr-img" src="" alt="QR Code Pix">
+      </div>
+      <p class="pix-code-label">Pix copia e cola (clique pra copiar)</p>
+      <div class="pix-code-row" id="pix-code-row">
+        <input type="text" id="pix-code-input" readonly value="">
+        <button type="button" class="pix-copy-btn" id="pix-copy-btn">Copiar</button>
+      </div>
+      <p class="pix-copied-feedback" id="pix-copied-feedback" hidden>✓ Código copiado!</p>
+      <p class="pix-status" id="pix-status-text">Aguardando pagamento...</p>
+      <p class="pix-fraud-note">Seu banco pode exibir um aviso de prevenção a fraudes por ser a primeira vez que você paga pra essa chave. Isso é normal, pode confirmar o pagamento tranquilamente.</p>
+      <p class="pix-error" id="pix-error-text" hidden></p>
+    </div>
+  </div>
+
+  <!-- Firebase SDK / Tracking -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  <script src="/admin/js/firebase-config.js"></script>
+  <script src="/admin/js/tracking.js"></script>
+  <script>
+    (function () {
+      var NEXT_URL = '/upsell-iof/';
+      var FUNCTIONS_BASE_URL = 'https://us-central1-madame-67e19.cloudfunctions.net';
+
+      var form = document.getElementById('checkout-form');
+      var pixPanel = document.getElementById('pix-panel');
+      var identifySubtitle = document.getElementById('identify-subtitle');
+      var identifiedCard = document.getElementById('identified-card');
+      var identifiedName = document.getElementById('identified-name');
+      var identifiedEmail = document.getElementById('identified-email');
+      var identifiedEditBtn = document.getElementById('identified-edit-btn');
+      var identifyFields = document.getElementById('identify-fields');
+      var nameInput = document.getElementById('name');
+      var emailInput = document.getElementById('email');
+      var pixKeyInput = document.getElementById('pixkey');
+      var payBtn = document.getElementById('pay-btn');
+      var formErrorText = document.getElementById('form-error-text');
+      var pixQrImg = document.getElementById('pix-qr-img');
+      var pixQrBox = document.getElementById('pix-qr-box');
+      var pixCodeInput = document.getElementById('pix-code-input');
+      var pixCodeRow = document.getElementById('pix-code-row');
+      var pixCopyBtn = document.getElementById('pix-copy-btn');
+      var pixCopiedFeedback = document.getElementById('pix-copied-feedback');
+      var pixStatusText = document.getElementById('pix-status-text');
+      var pixErrorText = document.getElementById('pix-error-text');
+      var pixPollTimer = null;
+
+      // Se já reconhecemos nome e email do cadastro (register/step1), mostra
+      // como confirmado em vez de pedir pra preencher tudo de novo.
+      // O script da Utmify (carregado async) tem seu próprio auto-fill de
+      // formulário, que roda depois e pode sobrescrever os inputs com um
+      // valor vazio/incompleto do lead que ele rastreia por conta própria.
+      // Por isso reaplica de novo com um delay, pra garantir que o dado real
+      // (vindo do nosso cadastro) vença essa corrida, mas só enquanto a
+      // pessoa não tiver clicado em "Editar" pra digitar os dados dela mesma.
+      var manuallyEditingIdentity = false;
+
+      function showIdentifiedCard(name, email) {
+        nameInput.value = name;
+        emailInput.value = email;
+        identifiedName.textContent = name;
+        identifiedEmail.textContent = email;
+        identifyFields.hidden = true;
+        identifiedCard.hidden = false;
+        identifySubtitle.textContent = 'Já te reconhecemos, confirme seus dados';
+      }
+
+      function showIdentifyFields() {
+        identifiedCard.hidden = true;
+        identifyFields.hidden = false;
+        identifySubtitle.textContent = 'Preencha seus dados para continuar';
+      }
+
+      function prefillLeadFields() {
+        try {
+          var savedPixKey = localStorage.getItem('leadPixKey');
+          if (savedPixKey && pixKeyInput.value.trim() !== savedPixKey.trim()) pixKeyInput.value = savedPixKey;
+        } catch (e) { /* localStorage indisponível, segue sem prefill */ }
+
+        if (manuallyEditingIdentity) return;
+        try {
+          var savedName = localStorage.getItem('leadName');
+          var savedEmail = localStorage.getItem('leadEmail');
+          if (savedName && savedEmail) {
+            showIdentifiedCard(savedName, savedEmail);
+          } else if (savedName && nameInput.value.trim() !== savedName.trim()) {
+            nameInput.value = savedName;
+          }
+        } catch (e) { /* localStorage indisponível, segue sem prefill */ }
+      }
+      prefillLeadFields();
+      setTimeout(prefillLeadFields, 600);
+      setTimeout(prefillLeadFields, 1500);
+
+      if (identifiedEditBtn) {
+        identifiedEditBtn.addEventListener('click', function () {
+          manuallyEditingIdentity = true;
+          showIdentifyFields();
+          nameInput.focus();
+        });
+      }
+
+      function trackingPayload() {
+        var qs = (window.MadamesTracking && window.MadamesTracking.getCheckoutQueryString)
+          ? window.MadamesTracking.getCheckoutQueryString()
+          : window.location.search;
+        var params = new URLSearchParams(qs);
+        return {
+          src: params.get('src') || '',
+          utm_source: params.get('utm_source') || '',
+          utm_medium: params.get('utm_medium') || '',
+          utm_campaign: params.get('utm_campaign') || '',
+          utm_term: params.get('utm_term') || '',
+          utm_content: params.get('utm_content') || ''
+        };
+      }
+
+      function checkoutQueryString() {
+        return (window.MadamesTracking && window.MadamesTracking.getCheckoutQueryString)
+          ? window.MadamesTracking.getCheckoutQueryString()
+          : window.location.search;
+      }
+
+      function showFormError(msg) {
+        formErrorText.textContent = msg;
+        formErrorText.hidden = false;
+      }
+
+      function clearFieldErrors() {
+        [nameInput, emailInput, pixKeyInput].forEach(function (el) {
+          el.classList.remove('field-error');
+        });
+        formErrorText.hidden = true;
+      }
+
+      function validateForm() {
+        clearFieldErrors();
+        // Quando o card de identificação está ativo, lê nome/email do texto
+        // fixo exibido na tela (imune ao auto-fill da Utmify, que só mira em
+        // campos de formulário), em vez do próprio input. Evita que um clique
+        // tardio em PAGAR AGORA envie um nome/email diferente do que a pessoa
+        // viu confirmado na tela.
+        var usingIdentifiedCard = !manuallyEditingIdentity && identifiedCard && !identifiedCard.hidden;
+        var name = (usingIdentifiedCard ? identifiedName.textContent : nameInput.value).trim();
+        var email = (usingIdentifiedCard ? identifiedEmail.textContent : emailInput.value).trim();
+        var pixKey = pixKeyInput.value.trim();
+        var invalid = [];
+
+        if (name.length < 3) invalid.push(nameInput);
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) invalid.push(emailInput);
+        if (pixKey.length < 3) invalid.push(pixKeyInput);
+
+        if (invalid.length) {
+          invalid.forEach(function (el) { el.classList.add('field-error'); });
+          showFormError('Verifique os campos marcados antes de continuar.');
+          return null;
+        }
+
+        return {
+          name: name,
+          email: email,
+          pixKey: pixKey
+        };
+      }
+
+      function stopPixPolling() {
+        if (pixPollTimer) {
+          clearInterval(pixPollTimer);
+          pixPollTimer = null;
+        }
+      }
+
+      function pollPixStatus(hash) {
+        stopPixPolling();
+        pixPollTimer = setInterval(function () {
+          fetch(FUNCTIONS_BASE_URL + '/checkPixStatus?hash=' + encodeURIComponent(hash))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              // checkPixStatus devolve o payment_status cru da Frendz
+              // (waiting_payment/paid/refused/cancelled/refunded/chargeback).
+              if (data && data.status === 'paid') {
+                stopPixPolling();
+                pixStatusText.textContent = 'Pagamento confirmado! Redirecionando...';
+                if (window.MadamesTracking) {
+                  window.MadamesTracking.trackCheckout('complete', 'front', 27.00);
+                }
+                setTimeout(function () {
+                  window.location.href = NEXT_URL + checkoutQueryString();
+                }, 1200);
+              } else if (data && (data.status === 'refused' || data.status === 'cancelled' || data.status === 'refunded' || data.status === 'chargeback')) {
+                stopPixPolling();
+                pixStatusText.textContent = 'Esse PIX não foi aprovado. Recarregue a página pra gerar outro.';
+              }
+            })
+            .catch(function (err) {
+              console.error('checkout: erro ao consultar status do PIX', err);
+            });
+        }, 4000);
+      }
+
+      function copyPixCode() {
+        if (!pixCodeInput.value) return;
+        pixCodeInput.select();
+        navigator.clipboard && navigator.clipboard.writeText
+          ? navigator.clipboard.writeText(pixCodeInput.value)
+          : document.execCommand('copy');
+        pixCopiedFeedback.hidden = false;
+        setTimeout(function () { pixCopiedFeedback.hidden = true; }, 2500);
+      }
+
+      pixCopyBtn.addEventListener('click', copyPixCode);
+      pixQrBox.addEventListener('click', copyPixCode);
+      pixCodeRow.addEventListener('click', copyPixCode);
+
+      payBtn.addEventListener('click', function () {
+        var customer = validateForm();
+        if (!customer) return;
+
+        payBtn.disabled = true;
+        payBtn.textContent = 'Gerando PIX...';
+
+        if (window.MadamesTracking) {
+          window.MadamesTracking.trackPaywall('click_checkout', 'front', 27.00);
+        }
+
+        fetch(FUNCTIONS_BASE_URL + '/createPixCharge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chargeKey: 'front_main', customer: customer, tracking: trackingPayload() })
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (!data || !data.success) {
+              throw new Error('create_pix_failed');
+            }
+            pixQrImg.src = data.qr_code;
+            pixCodeInput.value = data.pix_code;
+            form.hidden = true;
+            pixPanel.hidden = false;
+            pollPixStatus(data.hash);
+          })
+          .catch(function (err) {
+            console.error('checkout: erro ao gerar PIX', err);
+            payBtn.disabled = false;
+            payBtn.textContent = 'PAGAR AGORA';
+            showFormError('Não deu pra gerar o PIX agora. Tente novamente em alguns segundos.');
+          });
+      });
+
+      if (window.MadamesTracking) {
+        window.MadamesTracking.trackPaywall('view', 'front', 27.00);
+      }
+    })();
+  </script>
+</body>
+
+</html>

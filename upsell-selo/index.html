@@ -61,7 +61,7 @@
         <li>Benefícios permanentes, ativos assim que o pagamento é confirmado.</li>
       </ul>
 
-      <p class="price-line">Ativação única do selo: <span class="price-line-old">R$ 97,00</span> <strong class="price-line-value">R$ 24,90</strong></p>
+      <p class="price-line">Ativação única do selo: <span class="price-line-old">R$ 97,00</span> <strong class="price-line-value">R$ 15,00</strong></p>
 
       <a href="#" class="cta" id="accept-main">ATIVAR SELO E DOBRAR MINHAS CURTIDAS</a>
       <button type="button" class="decline-link" id="decline-main">Não, prefiro continuar recebendo menos por curtida</button>
@@ -91,7 +91,7 @@
 
       <p class="notice-text">Como você já chegou até aqui, liberamos o selo pela metade do preço, só dessa vez. Suas curtidas continuam valendo o dobro assim que o selo for ativado.</p>
 
-      <p class="price-line">Ativação única do selo: <span class="price-line-old">R$ 24,90</span> <strong class="price-line-value">R$ 12,45</strong></p>
+      <p class="price-line">Ativação única do selo: <span class="price-line-old">R$ 15,00</span> <strong class="price-line-value">R$ 12,45</strong></p>
 
       <a href="#" class="cta" id="accept-downsell">SIM, QUERO POR R$ 12,45</a>
       <button type="button" class="decline-link" id="decline-downsell">Não, prefiro não aparecer mais pras coroas</button>
@@ -150,7 +150,7 @@
     window.UPSELL_CONFIG = {
       step: 'selo',
       pagePath: '/upsell-selo/',
-      mainPrice: 24.90,
+      mainPrice: 15.00,
       downsellPrice: 12.45,
       mainCheckoutUrl: 'https://go.frendz.com.br/8whgzth5cp',
       downsellCheckoutUrl: 'https://go.frendz.com.br/fhm9k',
@@ -162,7 +162,7 @@
         downsellChargeKey: 'selo_downsell'
       },
       // Última da cadeia: recusar o downsell (ou confirmar o PIX) manda pro app final
-      nextUrl: 'https://appdomadames.netlify.app'
+      nextUrl: '/upsell-antecipacao/'
     };
   </script>
   <script src="/js/upsell-flow.js"></script>

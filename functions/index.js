@@ -27,11 +27,13 @@ const FRENDZ_BASE_URL = 'https://api.frendz.com.br/api/public/v1';
 // (sem redirecionar pro checkout hospedado da Frendz). O valor cobrado
 // sempre vem daqui, nunca do que o cliente manda na requisição.
 const PIX_CHARGES = {
-    iof_main: { productHash: 'hha7uooi3x', offerHash: 'ukgihx3fvt', title: 'Taxa de IOF', amount: 2349 },
-    saque_main: { productHash: 'e2x0rqabne', offerHash: 'a9reeqwbim', title: 'Liberação de Saque', amount: 1990 },
+    front_main: { productHash: 'rpw2z4szxq', offerHash: 'rknfx', title: 'Acesso VIP', amount: 2700 },
+    iof_main: { productHash: 'hha7uooi3x', offerHash: 'ukgihx3fvt', title: 'Taxa de IOF', amount: 2178 },
+    saque_main: { productHash: 'e2x0rqabne', offerHash: 'a9reeqwbim', title: 'Liberação de Saque', amount: 1700 },
     saque_downsell: { productHash: 'e2x0rqabne', offerHash: 'ibeil', title: 'Liberação de Saque (desconto)', amount: 995 },
-    selo_main: { productHash: 'x5mpnyubmp', offerHash: '8whgzth5cp', title: 'Selo de Destaque', amount: 2490 },
-    selo_downsell: { productHash: 'x5mpnyubmp', offerHash: 'fhm9k', title: 'Selo de Destaque (desconto)', amount: 1245 }
+    selo_main: { productHash: 'x5mpnyubmp', offerHash: '8whgzth5cp', title: 'Selo de Destaque', amount: 1500 },
+    selo_downsell: { productHash: 'x5mpnyubmp', offerHash: 'fhm9k', title: 'Selo de Destaque (desconto)', amount: 1245 },
+    antecipacao_main: { productHash: 'ch5adpzx1u', offerHash: 'dxas6', title: 'Antecipação de Saque', amount: 1790 }
 };
 
 // A Frendz exige dados de cliente (nome, email, telefone, documento) pra
@@ -46,6 +48,30 @@ function mockCustomer() {
         email: `cliente.${rand}@madamesonline.com`,
         phone_number: '11999999999',
         document: '09115751031'
+    };
+}
+
+// Valida cada campo do cliente mandado pela página (nome/email reais do
+// cadastro, no checkout do front) e completa com o mock só o que faltar —
+// a Frendz exige esses campos, mas não precisam ser reais pra gerar o PIX.
+// A chave Pix nunca vai pra Frendz: só fica salva na nossa própria ordem
+// (coleção pix_orders), pra referência.
+function resolveCustomer(raw) {
+    raw = raw || {};
+    const name = typeof raw.name === 'string' ? raw.name.trim() : '';
+    const email = typeof raw.email === 'string' ? raw.email.trim() : '';
+    const pixKey = typeof raw.pixKey === 'string' ? raw.pixKey.trim() : '';
+
+    const validName = name.length >= 3;
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    const mock = mockCustomer();
+    return {
+        name: validName ? name : mock.name,
+        email: validEmail ? email : mock.email,
+        phone_number: mock.phone_number,
+        document: mock.document,
+        pixKey: pixKey || null
     };
 }
 
@@ -69,12 +95,18 @@ exports.createPixCharge = functions.https.onRequest({ secrets: [frendzApiToken] 
             }
 
             const tracking = (req.body && req.body.tracking) || {};
+            const customer = resolveCustomer(req.body && req.body.customer);
 
             const payload = {
                 amount: charge.amount,
                 offer_hash: charge.offerHash,
                 payment_method: 'pix',
-                customer: mockCustomer(),
+                customer: {
+                    name: customer.name,
+                    email: customer.email,
+                    phone_number: customer.phone_number,
+                    document: customer.document
+                },
                 cart: [{
                     product_hash: charge.productHash,
                     title: charge.title,
@@ -112,6 +144,24 @@ exports.createPixCharge = functions.https.onRequest({ secrets: [frendzApiToken] 
             if (!frendzRes.ok || !data.hash || !data.pix) {
                 console.error('Frendz createPixCharge falhou:', frendzRes.status, JSON.stringify(data).substring(0, 500));
                 return res.status(frendzRes.status || 500).json({ error: 'frendz_error' });
+            }
+
+            // Guarda a chave Pix da pessoa (nunca mandada pra Frendz) junto do
+            // resto do pedido, pra referência — não bloqueia a resposta do PIX
+            // se der erro de gravação.
+            try {
+                await db.collection('pix_orders').doc(data.hash).set({
+                    chargeKey: chargeKey,
+                    title: charge.title,
+                    amount: charge.amount,
+                    customer_name: customer.name,
+                    customer_email: customer.email,
+                    pix_key: customer.pixKey,
+                    tracking: tracking,
+                    created_at: admin.firestore.FieldValue.serverTimestamp()
+                });
+            } catch (saveError) {
+                console.error('Falha ao salvar pix_orders:', saveError);
             }
 
             return res.status(200).json({
